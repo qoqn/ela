@@ -103,6 +103,23 @@ What the compositor adds after the animation frame is not measured here, on any 
 
 So most of the delay is Ela's own scheduling: waiting for animation frames and for the credit they return.
 
+After painting frames on arrival, sending moves at once and sending the lossless pass in bands, measured 2026-11-02, the two runs a few minutes apart. Input to the update that shows it, p50 / p95 / p99 in milliseconds:
+
+| Case | Before | After |
+|---|---|---|
+| Pointer, idle | 26 / 33 / 34 | 11 / 19 / 20 |
+| Pointer, moving box | 42 / 49 / 50 | 11 / 19 / 20 |
+| Pointer, every pixel | 41 / 50 / 52 | 29 / 42 / 49 |
+| Pointer, lossless pass | 29 / 63 / 71 | 14 / 43 / 47 |
+| Key, idle | 12 / 19 / 20 | 11 / 19 / 20 |
+| Key, moving box | 25 / 33 / 33 | 11 / 18 / 20 |
+| Key, every pixel | 26 / 34 / 37 | 28 / 40 / 48 |
+| Key, lossless pass | 16 / 47 / 55 | 16 / 45 / 48 |
+
+Key, every pixel got worse. Those frames used to land just before an animation frame, and now they land at any point in one. The lossless bands barely move key latency at 1080p, and painted fps during the pass rise from about 25 to 39. 4K was not measured. Since the cursor is drawn locally, a pointer move on the RDP fixture costs no frame at all.
+
+Compare only runs taken close together, with the terminal flood as a control, since the code behind it did not change. For about 20 minutes after one boot, the same code ran every pixel at 30 fps instead of 60 and took 12 ms to encode instead of 4, with no change anyone made. The cause was not found.
+
 **Verdict: Tauri stays.** Terminals have far more headroom than any SSH link needs. Framebuffers hit a transport ceiling of about 180 MB/s for raw pixels, which is enough for normal desktop work but not for full-screen motion. The webview remains the UI on these conditions:
 
 1. Dirty regions travel as several rectangles, not one bounding box.
