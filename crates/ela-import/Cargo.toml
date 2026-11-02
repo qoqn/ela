@@ -4,6 +4,7 @@ description = "Turns other tools' saved data into Connections"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]

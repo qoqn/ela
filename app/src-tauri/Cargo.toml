@@ -4,6 +4,7 @@ description = "Remote connection manager for SSH and RDP"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+publish.workspace = true
 rust-version.workspace = true
 
 [lib]

@@ -4,6 +4,7 @@ description = "Connections, Folders, Inheritance and their storage on disk"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]

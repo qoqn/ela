@@ -4,6 +4,7 @@ description = "Routes to a host: Jump Host chains, later SOCKS and relays"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]

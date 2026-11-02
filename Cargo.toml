@@ -3,6 +3,7 @@ resolver = "3"
 members = ["crates/*", "app/src-tauri"]
 
 [workspace.package]
+publish = false
 version = "0.1.0"
 edition = "2024"
 license = "GPL-3.0-or-later"

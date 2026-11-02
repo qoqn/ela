@@ -6,6 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "check": "bun fmt --check && svelte-check --tsconfig ./tsconfig.json",
+    "licenses": "bun scripts/licenses/generate.ts",
     "prepare": "git config core.hooksPath .githooks || true",
     "test": "bun test src",
     "tauri": "tauri"
