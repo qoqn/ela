@@ -24,8 +24,6 @@ class Meter {
   #bytes = 0;
   #paints = 0;
   #stageTotals: Record<string, number> = {};
-  #rafTotal = 0;
-  #rafCount = 0;
   stages: Record<string, number> = {};
   onSample: (() => void) | null = null;
   #timer = setInterval(() => {
@@ -35,10 +33,7 @@ class Meter {
         total / Math.max(this.#paints, 1),
       ]),
     );
-    if (this.#rafCount) this.stages.raf_interval = this.#rafTotal / this.#rafCount;
     this.#stageTotals = {};
-    this.#rafTotal = 0;
-    this.#rafCount = 0;
     this.bytesPerSec = this.#bytes;
     this.paintsPerSec = this.#paints;
     this.#bytes = 0;
@@ -54,10 +49,6 @@ class Meter {
   }
   stage(name: string, ms: number) {
     this.#stageTotals[name] = (this.#stageTotals[name] ?? 0) + ms;
-  }
-  animationFrame(ms: number) {
-    this.#rafTotal += ms;
-    this.#rafCount++;
   }
   dispose() {
     clearInterval(this.#timer);

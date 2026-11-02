@@ -24,8 +24,6 @@ class FrameTrace implements FrameProbe {
     sent: number;
     echoed: (rects: PieceRect[]) => boolean;
     stages?: Stages;
-    drawn?: number;
-    shownWithDraw?: boolean;
     finish: () => void;
   } | null = null;
 
@@ -56,29 +54,22 @@ class FrameTrace implements FrameProbe {
     if (this.#open && !this.#open.sent) this.#open.sent = now();
   }
 
-  painted(times: PaintTimes, rects: PieceRect[], inAnimationFrame: boolean) {
+  painted(times: PaintTimes, rects: PieceRect[]) {
     const open = this.#open;
     if (!open || !open.sent || open.stages || !open.echoed(rects)) return;
-    open.drawn = times.drawn;
-    open.shownWithDraw = inAnimationFrame;
     open.stages = {
       wait_flush: open.sent - open.input,
       to_ui: times.received - open.sent,
-      decode: times.decoded - times.received,
-      wait_paint: times.painting - times.decoded,
+      decode: times.painting - times.received,
       draw: times.drawn - times.painting,
       input_to_drawn: times.drawn - open.input,
     };
-  }
-
-  animationFrame() {
-    const open = this.#open;
-    if (!open?.stages || open.drawn === undefined) return;
-    // What's drawn inside an animation frame goes out with that update, and anything else waits
-    // for the next one.
-    open.stages.input_to_shown = (open.shownWithDraw ? open.drawn : now()) - open.input;
-    this.samples.push(open.stages);
-    open.finish();
+    // What's drawn between animation frames goes out with the next update.
+    requestAnimationFrame(() => {
+      open.stages!.input_to_shown = now() - open.input;
+      this.samples.push(open.stages!);
+      open.finish();
+    });
   }
 }
 

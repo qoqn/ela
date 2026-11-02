@@ -1,10 +1,9 @@
-export type PaintTimes = { received: number; decoded: number; painting: number; drawn: number };
+export type PaintTimes = { received: number; painting: number; drawn: number };
 export type PieceRect = { x: number; y: number; w: number; h: number };
 
 export interface FrameProbe {
   sent(): void;
-  painted(times: PaintTimes, rects: PieceRect[], inAnimationFrame: boolean): void;
-  animationFrame(): void;
+  painted(times: PaintTimes, rects: PieceRect[]): void;
 }
 
 export interface TerminalProbe {

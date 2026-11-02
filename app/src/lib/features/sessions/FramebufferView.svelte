@@ -8,6 +8,8 @@
   import { cursorStyle } from './remoteCursor';
 
   const RESIZE_DEBOUNCE_MS = 300;
+  // Sooner than the slowest polling a game mouse is sold with, and no flood on a slow link.
+  const MOVE_INTERVAL_MS = 8;
 
   type Piece = { x: number; y: number; image: ImageData | ImageBitmap };
   type DecodedFrame = { width: number; height: number; pieces: Piece[] };
@@ -20,12 +22,8 @@
   let displayH = $state(0);
   let viewScale = $state(1);
 
-  // With one credit in flight at most one frame waits here; the backend merges everything else
-  // (ADR-0007).
-  let pending: DecodedFrame | null = null;
-  let pendingSince = 0;
-  let pendingReceived = 0;
   let pendingMove: { x: number; y: number } | null = null;
+  let moveTimer: ReturnType<typeof setTimeout> | undefined;
 
   function layout() {
     if (!canvas.width || !container.clientWidth) return;
@@ -85,6 +83,17 @@
     return { x, y, w, h };
   }
 
+  function sendMove() {
+    if (!pendingMove || moveTimer !== undefined) return;
+    tab.input({ type: 'mouse_move', ...pendingMove });
+    tab.frameProbe?.sent();
+    pendingMove = null;
+    moveTimer = setTimeout(() => {
+      moveTimer = undefined;
+      sendMove();
+    }, MOVE_INTERVAL_MS);
+  }
+
   function toRemote(e: MouseEvent) {
     const r = canvas.getBoundingClientRect();
     return {
@@ -96,39 +105,6 @@
   onMount(() => {
     const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true })!;
     tab.drawBackend = 'canvas2d';
-    let raf = 0;
-    let lastFrame = 0;
-    const loop = (frameAt: number) => {
-      tab.frameProbe?.animationFrame();
-      if (lastFrame) tab.meter.animationFrame(frameAt - lastFrame);
-      lastFrame = frameAt;
-      if (pending) {
-        const frame = pending;
-        pending = null;
-        const painting = performance.now();
-        tab.meter.stage('wait_for_frame', painting - pendingSince);
-        const rects = tab.frameProbe && frame.pieces.map(pieceRect);
-        paint(ctx, frame);
-        const drawn = performance.now();
-        tab.meter.stage('draw', drawn - painting);
-        if (rects) {
-          const times = { received: pendingReceived, decoded: pendingSince, painting, drawn };
-          tab.frameProbe?.painted(times, rects, true);
-        }
-        tab.meter.painted();
-        const acking = performance.now();
-        tab.ack();
-        tab.meter.stage('ack_call', performance.now() - acking);
-      }
-      if (pendingMove) {
-        tab.input({ type: 'mouse_move', ...pendingMove });
-        tab.frameProbe?.sent();
-        pendingMove = null;
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-
     const dpr = window.devicePixelRatio || 1;
     void tab.start(
       {
@@ -140,12 +116,15 @@
         decode(msg)
           .then((frame) => {
             if (!frame) return tab.ack();
-            const decoded = performance.now();
-            tab.meter.stage('decode', decoded - received);
-            if (pending) tab.ack(); // never expected with one credit; keep the pipeline moving anyway
-            pending = frame;
-            pendingSince = decoded;
-            pendingReceived = received;
+            const painting = performance.now();
+            tab.meter.stage('decode', painting - received);
+            const rects = tab.frameProbe && frame.pieces.map(pieceRect);
+            paint(ctx, frame);
+            const drawn = performance.now();
+            tab.meter.stage('draw', drawn - painting);
+            tab.meter.painted();
+            if (rects) tab.frameProbe?.painted({ received, painting, drawn }, rects);
+            tab.ack();
           })
           .catch((e) => {
             // Skip this update and keep the Session going; the next one may be fine.
@@ -186,7 +165,7 @@
     return () => {
       clearTimeout(resizeTimer);
       canvas.removeEventListener('wheel', onWheel);
-      cancelAnimationFrame(raf);
+      clearTimeout(moveTimer);
       ro.disconnect();
     };
   });
@@ -270,7 +249,10 @@
         hostKey.forgetForwarded();
         tab.input({ type: 'release_all' });
       }}
-      onmousemove={(e) => (pendingMove = toRemote(e))}
+      onmousemove={(e) => {
+        pendingMove = toRemote(e);
+        sendMove();
+      }}
       onmousedown={(e) => {
         canvas.focus();
         tab.input({ type: 'mouse_button', button: e.button, down: true, ...toRemote(e) });

@@ -694,25 +694,11 @@ async fn serve(link: Link, io: &mut SessionIo) -> Result<Option<Redirected>, Ses
     let mut input = Database::new();
 
     loop {
+        // Input goes first, so a burst from the server can't hold it back.
         let outputs = tokio::select! {
-            pdu = framed.read_pdu() => {
-                let (action, payload) = pdu.map_err(|e| SessionError::from_io(&e))?;
-                if action == Action::X224
-                    && let Some(pdu) = redirect::freerdp_redirection(&payload, io_channel_id)
-                {
-                    if pdu.is_informational() {
-                        continue;
-                    }
-                    return Ok(Some(Redirected { redirect: Redirect::new(pdu)?, width, height }));
-                }
-                stage
-                    .process(&mut image, action, &payload, framed.last_read_at())
-                    .map_err(session_error)?
-            }
-            Some(event) = clipboard.recv() => {
-                let frame = on_clipboard_event(event, &mut stage, &io.sink);
-                write_frame(&mut framed, &frame).await?;
-                continue;
+            biased;
+            _ = io.cancel.cancelled() => {
+                return Err(SessionError::Cancelled);
             }
             cmd = io.commands.recv() => {
                 let Some(cmd) = cmd else { break };
@@ -743,8 +729,24 @@ async fn serve(link: Link, io: &mut SessionIo) -> Result<Option<Redirected>, Ses
                 };
                 stage.process_fastpath_input(&mut image, &events).map_err(session_error)?
             }
-            _ = io.cancel.cancelled() => {
-                return Err(SessionError::Cancelled);
+            Some(event) = clipboard.recv() => {
+                let frame = on_clipboard_event(event, &mut stage, &io.sink);
+                write_frame(&mut framed, &frame).await?;
+                continue;
+            }
+            pdu = framed.read_pdu() => {
+                let (action, payload) = pdu.map_err(|e| SessionError::from_io(&e))?;
+                if action == Action::X224
+                    && let Some(pdu) = redirect::freerdp_redirection(&payload, io_channel_id)
+                {
+                    if pdu.is_informational() {
+                        continue;
+                    }
+                    return Ok(Some(Redirected { redirect: Redirect::new(pdu)?, width, height }));
+                }
+                stage
+                    .process(&mut image, action, &payload, framed.last_read_at())
+                    .map_err(session_error)?
             }
         };
         // The graphics pipeline resizes with ResetGraphics instead of a reactivation.
