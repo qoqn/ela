@@ -25,6 +25,7 @@ class FrameTrace implements FrameProbe {
     echoed: (rects: PieceRect[]) => boolean;
     stages?: Stages;
     drawn?: number;
+    shownWithDraw?: boolean;
     finish: () => void;
   } | null = null;
 
@@ -55,10 +56,11 @@ class FrameTrace implements FrameProbe {
     if (this.#open && !this.#open.sent) this.#open.sent = now();
   }
 
-  painted(times: PaintTimes, rects: PieceRect[]) {
+  painted(times: PaintTimes, rects: PieceRect[], inAnimationFrame: boolean) {
     const open = this.#open;
     if (!open || !open.sent || open.stages || !open.echoed(rects)) return;
     open.drawn = times.drawn;
+    open.shownWithDraw = inAnimationFrame;
     open.stages = {
       wait_flush: open.sent - open.input,
       to_ui: times.received - open.sent,
@@ -72,7 +74,9 @@ class FrameTrace implements FrameProbe {
   animationFrame() {
     const open = this.#open;
     if (!open?.stages || open.drawn === undefined) return;
-    open.stages.next_frame = now() - open.drawn;
+    // What's drawn inside an animation frame goes out with that update, and anything else waits
+    // for the next one.
+    open.stages.input_to_shown = (open.shownWithDraw ? open.drawn : now()) - open.input;
     this.samples.push(open.stages);
     open.finish();
   }
@@ -149,7 +153,6 @@ class TerminalTrace implements TerminalProbe {
         parse: parsed - received,
         wait_render: rendered - parsed,
         input_to_rendered: rendered - input,
-        next_frame: now() - rendered,
       });
       finish();
     });
@@ -215,12 +218,19 @@ async function record(tab: SessionTab, name: string, stages: Stages) {
   });
 }
 
+// `?latency=key` runs only the cases with that in their name.
+function wanted(name: string) {
+  const only = new URLSearchParams(location.search).get('latency');
+  return !only || only === '1' || name.includes(only);
+}
+
 async function withTab(
   name: string,
   request: OpenRequest,
   body: (tab: SessionTab) => Promise<{ samples: Stages[]; extra?: Stages }>,
   fixture = false,
 ) {
+  if (!wanted(name)) return;
   const tab = workspace.open(request, { name: `Latency: ${name}`, env: 'lab' });
   try {
     if (!(await connected(tab, fixture))) {
@@ -400,6 +410,7 @@ export async function measureInputLatency() {
     ['idle', 'idle'],
     ['moving box', 'partial'],
     ['every pixel', 'full'],
+    ['lossless pass', 'bursts'],
   ];
   for (const [label, mode] of loads) {
     await withTab(`pointer, ${label}`, framebuffer(mode), pointerMarked);
@@ -409,11 +420,13 @@ export async function measureInputLatency() {
   await withTab('terminal, flood', terminal('flood'), floodThenCtrlC);
   await withTab('input order', terminal('idle'), burstOrder);
 
-  const busy = workspace.open(framebuffer('full'), { name: 'Latency: busy Tab', env: 'lab' });
-  await sleep(SETTLE_MS);
-  await withTab('terminal, busy Tab behind', terminal('idle'), typedMarked);
-  await withTab('pointer, busy Tab behind', framebuffer('idle'), pointerMarked);
-  workspace.closeTab(busy.key);
+  if (wanted('busy Tab behind')) {
+    const busy = workspace.open(framebuffer('full'), { name: 'Latency: busy Tab', env: 'lab' });
+    await sleep(SETTLE_MS);
+    await withTab('terminal, busy Tab behind', terminal('idle'), typedMarked);
+    await withTab('pointer, busy Tab behind', framebuffer('idle'), pointerMarked);
+    workspace.closeTab(busy.key);
+  }
 
   await withTab(
     'SSH test server, shell',

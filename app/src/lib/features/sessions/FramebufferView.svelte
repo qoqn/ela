@@ -113,7 +113,7 @@
         tab.meter.stage('draw', drawn - painting);
         if (rects) {
           const times = { received: pendingReceived, decoded: pendingSince, painting, drawn };
-          tab.frameProbe?.painted(times, rects);
+          tab.frameProbe?.painted(times, rects, true);
         }
         tab.meter.painted();
         const acking = performance.now();

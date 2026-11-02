@@ -182,7 +182,7 @@ impl Protocol for BenchFramebuffer {
     }
     fn settings_schema(&self) -> serde_json::Value {
         json!({
-            "mode": { "type": "enum", "values": ["full", "partial", "idle"], "default": "full" },
+            "mode": { "type": "enum", "values": ["full", "partial", "idle", "bursts"], "default": "full" },
             "echo": { "type": "boolean", "default": false },
             "image_quality": { "type": "enum", "values": ["auto", "lossless"], "default": "auto" },
             "fps": { "type": "integer", "default": 60 },
@@ -201,6 +201,7 @@ impl Protocol for BenchFramebuffer {
             load: match config.option_str("mode") {
                 Some("partial") => Load::Box,
                 Some("idle") => Load::Nothing,
+                Some("bursts") => Load::Bursts,
                 _ => Load::EveryPixel,
             },
             echo: config.options.get("echo") == Some(&json!(true)),
@@ -216,6 +217,8 @@ enum Load {
     EveryPixel,
     Box,
     Nothing,
+    // Long enough apart that the lossless pass runs between them.
+    Bursts,
 }
 
 struct FbSession {
@@ -268,6 +271,8 @@ impl Session for FbSession {
                 Load::EveryPixel => frame.draw(|px, w, h| draw_full(px, w, h, n)),
                 Load::Box => frame.draw(|px, w, h| draw_partial(px, w, h, n, cursor)),
                 Load::Nothing => continue,
+                Load::Bursts if n % 33 >= 9 => continue,
+                Load::Bursts => frame.draw(|px, w, h| draw_full(px, w, h, n)),
             }
             draw_mark_now(mark);
         }

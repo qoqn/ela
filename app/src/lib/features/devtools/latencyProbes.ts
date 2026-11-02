@@ -3,7 +3,7 @@ export type PieceRect = { x: number; y: number; w: number; h: number };
 
 export interface FrameProbe {
   sent(): void;
-  painted(times: PaintTimes, rects: PieceRect[]): void;
+  painted(times: PaintTimes, rects: PieceRect[], inAnimationFrame: boolean): void;
   animationFrame(): void;
 }
 

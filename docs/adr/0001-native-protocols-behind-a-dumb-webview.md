@@ -99,7 +99,7 @@ Input latency, measured 2026-11-02 with the input latency run in a release build
 | Terminal, SSH fixture | 12 / 20 / 21 | 3 | 0 | 9 |
 | Terminal, flood | 121 / 126 / 128 | 64 | 43 | 14 |
 
-About 16 ms more passes before the next animation frame, on every line, and the compositor's share of that is not measured. An idle round trip of a command that does nothing takes 1 to 2 ms, so IPC is not the limit. A frame waits for its credit 16.6 ms on average with the moving box and 11 ms with every pixel changing. A busy Tab behind the one in use moved these numbers by 2 ms at most at p50. Of 500 inputs sent as fast as the webview could, all arrived and none out of order. After Ctrl+C, the benchmark flood's last byte arrived after 63 ms and was parsed after 111 ms, and `yes` on the SSH fixture took 377 ms.
+What the compositor adds after the animation frame is not measured here, on any line. An idle round trip of a command that does nothing takes 1 to 2 ms, so IPC is not the limit. A frame waits for its credit 16.6 ms on average with the moving box and 11 ms with every pixel changing. A busy Tab behind the one in use moved these numbers by 2 ms at most at p50. Of 500 inputs sent as fast as the webview could, all arrived and none out of order. After Ctrl+C, the benchmark flood's last byte arrived after 63 ms and was parsed after 111 ms, and `yes` on the SSH fixture took 377 ms.
 
 So most of the delay is Ela's own scheduling: waiting for animation frames and for the credit they return.
 
