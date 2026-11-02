@@ -474,6 +474,7 @@ export type SessionStats = {
 	encode_ns: number,
 	send_ns: number,
 	ack_wait_ns: number,
+	credit_wait_ns: number,
 };
 
 export type SessionStatus = SessionStatus_Serialize | SessionStatus_Deserialize;

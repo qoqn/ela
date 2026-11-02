@@ -35,6 +35,9 @@
     workspace.load().catch((e) => (loadError = String(e)));
     void shell.loadHostKey();
     void terminalFont.load();
+    if (import.meta.env.DEV && location.search.includes('latency')) {
+      void import('./lib/features/devtools/latency').then((run) => run.measureInputLatency());
+    }
   });
 
   // Framebuffer Sessions handle their own keys and don't let them reach this far.

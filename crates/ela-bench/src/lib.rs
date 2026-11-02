@@ -6,6 +6,17 @@ use ela_session::{
     SessionSink,
 };
 use serde_json::json;
+use tokio::sync::mpsc;
+
+const CTRL_C: u8 = 3;
+const FLOOD_LINE: &str = "\x1b[32m  12345\x1b[0m the quick brown fox jumps over the lazy dog\r\n";
+// The largest packet a russh channel delivers by default.
+const FLOOD_CHUNK: usize = 32 * 1024;
+
+// The latency run reads these cells from the canvas, so an input's echo can be told from load even
+// inside a JPEG. Keep in step with the run's `markValue`.
+const MARK_BITS: u16 = 8;
+const MARK_CELL: u16 = 32;
 
 pub struct BenchTerminal;
 
@@ -27,13 +38,21 @@ impl Protocol for BenchTerminal {
         false
     }
     fn settings_schema(&self) -> serde_json::Value {
-        json!({ "mb": { "type": "integer", "default": 50, "label": "Megabytes to print" } })
+        json!({
+            "mb": { "type": "integer", "default": 50, "label": "Megabytes to print" },
+            "echo": { "type": "enum", "values": ["idle", "flood"] }
+        })
     }
     async fn connect(
         &self,
         config: ResolvedConfig,
         _: &SessionSink,
     ) -> Result<Box<dyn Session>, SessionError> {
+        if let Some(load) = config.option_str("echo") {
+            return Ok(Box::new(EchoTerminal {
+                flooding: load == "flood",
+            }));
+        }
         Ok(Box::new(TermSession {
             megabytes: config.option_u64("mb").unwrap_or(50),
         }))
@@ -90,6 +109,58 @@ impl Session for TermSession {
     }
 }
 
+// Holds the shape of an SSH Session, with output in its own task, so an echo queues behind a flood
+// as it does there.
+struct EchoTerminal {
+    flooding: bool,
+}
+
+#[async_trait]
+impl Session for EchoTerminal {
+    async fn run(self: Box<Self>, mut io: SessionIo) -> Result<(), SessionError> {
+        let (echo, mut echoes) = mpsc::unbounded_channel::<Vec<u8>>();
+        let sink = io.sink.clone();
+        let mut flooding = self.flooding;
+        let writer = tokio::spawn(async move {
+            let chunk = FLOOD_LINE
+                .repeat(FLOOD_CHUNK / FLOOD_LINE.len())
+                .into_bytes();
+            loop {
+                let echoed = if flooding {
+                    echoes.try_recv().ok()
+                } else {
+                    echoes.recv().await
+                };
+                let written = match echoed {
+                    Some(data) => {
+                        flooding &= !data.contains(&CTRL_C);
+                        sink.terminal(data).await
+                    }
+                    None if flooding => sink.terminal(chunk.clone()).await,
+                    None => return,
+                };
+                if written.is_err() {
+                    return;
+                }
+            }
+        });
+        let ended = loop {
+            tokio::select! {
+                cmd = io.commands.recv() => match cmd {
+                    Some(SessionCommand::Text { data }) => {
+                        let _ = echo.send(data.into_bytes());
+                    }
+                    Some(_) => {}
+                    None => break Ok(()),
+                },
+                _ = io.cancel.cancelled() => break Err(SessionError::Cancelled),
+            }
+        };
+        writer.abort();
+        ended
+    }
+}
+
 pub struct BenchFramebuffer;
 
 #[async_trait]
@@ -111,7 +182,8 @@ impl Protocol for BenchFramebuffer {
     }
     fn settings_schema(&self) -> serde_json::Value {
         json!({
-            "mode": { "type": "enum", "values": ["full", "partial"], "default": "full" },
+            "mode": { "type": "enum", "values": ["full", "partial", "idle"], "default": "full" },
+            "echo": { "type": "boolean", "default": false },
             "image_quality": { "type": "enum", "values": ["auto", "lossless"], "default": "auto" },
             "fps": { "type": "integer", "default": 60 },
             "width": { "type": "integer", "default": 1920 },
@@ -126,7 +198,12 @@ impl Protocol for BenchFramebuffer {
         let dim =
             |key, default: u64| config.option_u64(key).unwrap_or(default).clamp(16, 4096) as u16;
         Ok(Box::new(FbSession {
-            full: config.option_str("mode") != Some("partial"),
+            load: match config.option_str("mode") {
+                Some("partial") => Load::Box,
+                Some("idle") => Load::Nothing,
+                _ => Load::EveryPixel,
+            },
+            echo: config.options.get("echo") == Some(&json!(true)),
             fps: config.option_u64("fps").unwrap_or(60).clamp(1, 240),
             width: dim("width", 1920),
             height: dim("height", 1080),
@@ -134,8 +211,16 @@ impl Protocol for BenchFramebuffer {
     }
 }
 
+#[derive(Clone, Copy)]
+enum Load {
+    EveryPixel,
+    Box,
+    Nothing,
+}
+
 struct FbSession {
-    full: bool,
+    load: Load,
+    echo: bool,
     fps: u64,
     width: u16,
     height: u16,
@@ -150,12 +235,27 @@ impl Session for FbSession {
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut n: u32 = 0;
         let mut cursor = (0u16, 0u16);
+        let mut mark = 0u8;
+        let draw_mark_now = |mark| {
+            if self.echo {
+                frame.draw(|px, w, h| [draw_mark(px, w, h, mark)]);
+            }
+        };
+        draw_mark_now(mark);
         loop {
             tokio::select! {
                 _ = tick.tick() => {}
                 cmd = io.commands.recv() => {
                     match cmd {
-                        Some(SessionCommand::MouseMove { x, y }) => cursor = (x, y),
+                        Some(SessionCommand::MouseMove { x, y }) => {
+                            cursor = (x, y);
+                            mark = mark.wrapping_add(1);
+                            draw_mark_now(mark);
+                        }
+                        Some(SessionCommand::Key { down: true, .. }) => {
+                            mark = mark.wrapping_add(1);
+                            draw_mark_now(mark);
+                        }
                         None => return Ok(()),
                         _ => {}
                     }
@@ -164,13 +264,27 @@ impl Session for FbSession {
                 _ = io.cancel.cancelled() => return Err(SessionError::Cancelled),
             }
             n = n.wrapping_add(1);
-            if self.full {
-                frame.draw(|px, w, h| draw_full(px, w, h, n));
-            } else {
-                frame.draw(|px, w, h| draw_partial(px, w, h, n, cursor));
+            match self.load {
+                Load::EveryPixel => frame.draw(|px, w, h| draw_full(px, w, h, n)),
+                Load::Box => frame.draw(|px, w, h| draw_partial(px, w, h, n, cursor)),
+                Load::Nothing => continue,
             }
+            draw_mark_now(mark);
         }
     }
+}
+
+fn draw_mark(px: &mut [u8], w: u16, h: u16, value: u8) -> Rect {
+    let (width, height) = ((MARK_BITS * MARK_CELL).min(w), MARK_CELL.min(h));
+    for y in 0..usize::from(height) {
+        for x in 0..usize::from(width) {
+            let bit = x / usize::from(MARK_CELL);
+            let c = if value >> bit & 1 == 1 { 255 } else { 0 };
+            let at = (y * usize::from(w) + x) * 4;
+            px[at..at + 4].copy_from_slice(&[c, c, c, 255]);
+        }
+    }
+    Rect::new(0, 0, width, height)
 }
 
 fn draw_full(px: &mut [u8], w: u16, h: u16, n: u32) -> [Rect; 1] {
@@ -293,6 +407,114 @@ mod tests {
             self.update_bytes
                 .fetch_add(message.len() as u64, Ordering::SeqCst);
         }
+    }
+
+    fn bench_config(options: serde_json::Value) -> ResolvedConfig {
+        ResolvedConfig {
+            connection: None,
+            host: "bench".into(),
+            port: 0,
+            username: None,
+            password: None,
+            options: options.as_object().unwrap().clone(),
+            initial_size: Size {
+                width: 1920,
+                height: 1080,
+            },
+            jump_hosts: Vec::new(),
+            saved_password_lost: false,
+        }
+    }
+
+    fn mark_in(px: &[u8]) -> u8 {
+        let row = 16 * 1920 * 4;
+        (0..8).fold(0, |value, bit| {
+            let x = 16 + bit * 32;
+            value | (u8::from(px[row + x * 4] > 128) << bit)
+        })
+    }
+
+    #[tokio::test]
+    async fn the_mark_counts_moves_and_key_presses_only() {
+        let mut registry = ProtocolRegistry::new();
+        registry.register(BenchFramebuffer);
+        let mgr = SessionManager::new(registry);
+        let config = bench_config(json!({ "mode": "idle", "echo": true }));
+        let id = mgr
+            .open("bench-fb", config, Arc::new(Meter::default()))
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let key = |down| SessionCommand::Key {
+            code: "KeyQ".into(),
+            down,
+        };
+        for command in [
+            SessionCommand::MouseMove { x: 5, y: 5 },
+            key(true),
+            key(false),
+        ] {
+            mgr.send(id, command).unwrap();
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let (_, _, px) = mgr.snapshot(id).expect("a surface");
+        assert_eq!(mark_in(&px), 2);
+        mgr.close(id);
+    }
+
+    #[derive(Default)]
+    struct Terminal {
+        bytes: std::sync::Mutex<Vec<u8>>,
+        messages: AtomicU64,
+    }
+
+    impl Frontend for Terminal {
+        fn event(&self, _: FrontendEvent) {}
+        fn data(&self, message: Vec<u8>) {
+            self.bytes.lock().unwrap().extend_from_slice(&message[1..]);
+            self.messages.fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    #[tokio::test]
+    async fn an_echo_comes_through_a_flood_and_ctrl_c_ends_the_flood() {
+        let mut registry = ProtocolRegistry::new();
+        registry.register(BenchTerminal);
+        let mgr = SessionManager::new(registry);
+        let terminal = Arc::new(Terminal::default());
+        let config = bench_config(json!({ "echo": "flood" }));
+        let id = mgr.open("bench-term", config, terminal.clone()).unwrap();
+
+        let pump = |until: Duration| {
+            let (mgr, terminal) = (mgr.clone(), terminal.clone());
+            async move {
+                let (start, mut acked) = (Instant::now(), 0);
+                while start.elapsed() < until {
+                    let received = terminal.messages.load(Ordering::SeqCst);
+                    for _ in acked..received {
+                        mgr.ack(id);
+                    }
+                    acked = received;
+                    tokio::time::sleep(Duration::from_millis(1)).await;
+                }
+            }
+        };
+        pump(Duration::from_millis(100)).await;
+        mgr.send(
+            id,
+            SessionCommand::Text {
+                data: "MARK\x03".into(),
+            },
+        )
+        .unwrap();
+        pump(Duration::from_millis(300)).await;
+
+        let after_stop = terminal.bytes.lock().unwrap().len();
+        pump(Duration::from_millis(100)).await;
+        let bytes = terminal.bytes.lock().unwrap();
+        assert_eq!(bytes.len(), after_stop, "the flood kept going");
+        assert!(bytes.ends_with(b"MARK\x03") || bytes.windows(5).any(|w| w == b"MARK\x03"));
+        mgr.close(id);
     }
 
     #[tokio::test]

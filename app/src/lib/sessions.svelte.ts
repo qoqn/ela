@@ -4,6 +4,7 @@ import { copyText, pasteText } from './clipboard';
 import { TerminalFind } from './features/sessions/find.svelte';
 import { summariseLinks } from './features/sessions/link';
 import { advance, START, type Progress } from './features/sessions/progress';
+import type { Drive, FrameProbe, TerminalProbe } from './features/devtools/latencyProbes';
 import type { Env, LinkState } from './ui';
 import type {
   FrontendEvent,
@@ -108,6 +109,9 @@ export class SessionTab {
   #prevStats: SessionStats | null = null;
   statsRate = $state<{ produced: number; sent: number } | null>(null);
   #backendStages: Record<string, number> = {};
+  drive: Drive | null = null;
+  frameProbe: FrameProbe | null = null;
+  terminalProbe: TerminalProbe | null = null;
 
   constructor(request: OpenRequest, renderer: RendererKind, meta: TabMeta = {}) {
     this.#request = request;
@@ -169,6 +173,10 @@ export class SessionTab {
     }
   }
 
+  get backendStages(): Readonly<Record<string, number>> {
+    return this.#backendStages;
+  }
+
   #recordSample() {
     if (this.status.state !== 'connected') return;
     const sample = {
@@ -228,6 +236,7 @@ export class SessionTab {
             encode: perFrame(ev.stats.encode_ns, prev.encode_ns),
             send: perFrame(ev.stats.send_ns, prev.send_ns),
             ack_wait: perFrame(ev.stats.ack_wait_ns, prev.ack_wait_ns),
+            credit_wait: perFrame(ev.stats.credit_wait_ns, prev.credit_wait_ns),
           };
         }
       }

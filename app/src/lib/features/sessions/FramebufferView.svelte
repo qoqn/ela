@@ -4,6 +4,7 @@
   import type { SessionTab } from '../../sessions.svelte';
   import { runCommand, shell } from '../../shell/shell.svelte';
   import { hostKey, type KeyDecision } from '../../shell/shortcuts';
+  import { MARK_ROW, MARK_WIDTH, markValue } from '../devtools/latencyStats';
 
   const RESIZE_DEBOUNCE_MS = 300;
 
@@ -21,6 +22,7 @@
   // (ADR-0007).
   let pending: DecodedFrame | null = null;
   let pendingSince = 0;
+  let pendingReceived = 0;
   let pendingMove: { x: number; y: number } | null = null;
 
   function layout() {
@@ -76,6 +78,10 @@
     }
   }
 
+  function pieceRect({ x, y, image: { width: w, height: h } }: Piece) {
+    return { x, y, w, h };
+  }
+
   function toRemote(e: MouseEvent) {
     const r = canvas.getBoundingClientRect();
     return {
@@ -90,6 +96,7 @@
     let raf = 0;
     let lastFrame = 0;
     const loop = (frameAt: number) => {
+      tab.frameProbe?.animationFrame();
       if (lastFrame) tab.meter.animationFrame(frameAt - lastFrame);
       lastFrame = frameAt;
       if (pending) {
@@ -97,8 +104,14 @@
         pending = null;
         const painting = performance.now();
         tab.meter.stage('wait_for_frame', painting - pendingSince);
+        const rects = tab.frameProbe && frame.pieces.map(pieceRect);
         paint(ctx, frame);
-        tab.meter.stage('draw', performance.now() - painting);
+        const drawn = performance.now();
+        tab.meter.stage('draw', drawn - painting);
+        if (rects) {
+          const times = { received: pendingReceived, decoded: pendingSince, painting, drawn };
+          tab.frameProbe?.painted(times, rects);
+        }
         tab.meter.painted();
         const acking = performance.now();
         tab.ack();
@@ -106,6 +119,7 @@
       }
       if (pendingMove) {
         tab.input({ type: 'mouse_move', ...pendingMove });
+        tab.frameProbe?.sent();
         pendingMove = null;
       }
       raf = requestAnimationFrame(loop);
@@ -128,6 +142,7 @@
             if (pending) tab.ack(); // never expected with one credit; keep the pipeline moving anyway
             pending = frame;
             pendingSince = decoded;
+            pendingReceived = received;
           })
           .catch((e) => {
             // Skip this update and keep the Session going; the next one may be fine.
@@ -136,6 +151,24 @@
           });
       },
     );
+
+    tab.drive = {
+      pointer(step) {
+        const r = canvas.getBoundingClientRect();
+        const event = new MouseEvent('mousemove', {
+          bubbles: true,
+          clientX: r.left + r.width * (step % 2 ? 0.6 : 0.4),
+          clientY: r.top + r.height * 0.5,
+        });
+        canvas.dispatchEvent(event);
+        return toRemote(event);
+      },
+      key(down) {
+        const type = down ? 'keydown' : 'keyup';
+        canvas.dispatchEvent(new KeyboardEvent(type, { bubbles: true, code: 'KeyQ' }));
+      },
+      mark: () => markValue(ctx.getImageData(0, MARK_ROW, MARK_WIDTH, 1).data),
+    };
 
     let resizeTimer: ReturnType<typeof setTimeout>;
     const ro = new ResizeObserver(() => {

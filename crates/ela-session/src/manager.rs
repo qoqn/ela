@@ -51,6 +51,7 @@ pub struct SessionStats {
     pub encode_ns: u64,
     pub send_ns: u64,
     pub ack_wait_ns: u64,
+    pub credit_wait_ns: u64,
 }
 
 #[derive(Default)]
@@ -62,6 +63,7 @@ struct Counters {
     encode_ns: AtomicU64,
     send_ns: AtomicU64,
     ack_wait_ns: AtomicU64,
+    credit_wait_ns: AtomicU64,
 }
 
 struct Handle {
@@ -232,6 +234,7 @@ impl SessionManager {
                         encode_ns: counters.encode_ns.load(Ordering::Relaxed),
                         send_ns: counters.send_ns.load(Ordering::Relaxed),
                         ack_wait_ns: counters.ack_wait_ns.load(Ordering::Relaxed),
+                        credit_wait_ns: counters.credit_wait_ns.load(Ordering::Relaxed),
                     },
                 });
             }
@@ -421,9 +424,11 @@ async fn pump_frames(
             }
             _ = cancel.cancelled() => return,
         }
+        let changed = Instant::now();
         if !acquire_credit(&credits, &cancel).await {
             return;
         }
+        add_time(&counters.credit_wait_ns, changed);
         if let Some(since) = handed_over.take() {
             add_time(&counters.ack_wait_ns, since);
         }

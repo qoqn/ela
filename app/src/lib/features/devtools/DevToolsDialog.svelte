@@ -3,6 +3,7 @@
   import { workspace } from '../../sessions.svelte';
   import { shell } from '../../shell/shell.svelte';
   import { Dialog, EnvRail, SectionHeader, type Env } from '../../ui';
+  import { measureInputLatency } from './latency';
 
   const benchmarks: { name: string; detail: string; request: OpenRequest }[] = [
     {
@@ -109,6 +110,17 @@
           )}
         </li>
       {/each}
+      <li>
+        {@render item(
+          'Input latency',
+          'Every case, about 5 minutes. Hands off until it finishes.',
+          'lab',
+          () => {
+            shell.devToolsOpen = false;
+            void measureInputLatency();
+          },
+        )}
+      </li>
     </ul>
   </div>
 </Dialog>

@@ -12,6 +12,7 @@
   import { shell } from '../../shell/shell.svelte';
   import { appCommand } from '../../shell/shortcuts';
   import { Menu, type MenuItem } from '../../ui';
+  import { LATENCY_OSC } from '../devtools/latencyStats';
   import { fileBrowserOf } from '../files/files.svelte';
   import { findPatternError } from './find';
   import { folderFromOsc7 } from './osc7';
@@ -226,8 +227,12 @@
     void tab.start({ width: t.cols, height: t.rows }, (msg) => {
       const bytes = new Uint8Array(msg);
       if (bytes[0] !== MSG_TERMINAL) return tab.ack();
+      tab.terminalProbe?.received(bytes);
       // Ack once xterm has parsed the chunk: that is the backpressure signal.
-      t.write(bytes.subarray(1), () => tab.ack());
+      t.write(bytes.subarray(1), () => {
+        tab.ack();
+        tab.terminalProbe?.written();
+      });
     });
 
     const subs = [
@@ -237,6 +242,14 @@
         tab.find.results = { index: resultIndex, count: resultCount };
       }),
     ];
+    if (import.meta.env.DEV) {
+      tab.drive = { type: (data) => t.input(data, true) };
+      t.parser.registerOscHandler(LATENCY_OSC, (data) => {
+        tab.terminalProbe?.echoParsed(data);
+        return true;
+      });
+      subs.push(t.onRender(() => tab.terminalProbe?.rendered()));
+    }
     const ro = new ResizeObserver(() => refit());
     ro.observe(host);
 

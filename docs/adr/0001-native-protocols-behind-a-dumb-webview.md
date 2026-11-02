@@ -81,6 +81,28 @@ Time per frame with JPEG, in milliseconds:
 
 The benchmark image is a smooth gradient and compresses well, about 155 KB per 1080p frame. Real video produces larger messages, so expect lower numbers there. On one thread, encoding took 12.7 ms at 1080p and 47 ms at 4K, which held 4K at 13 fps.
 
+Input latency, measured 2026-11-02 with the input latency run in a release build on WebKitGTK, with a development frontend. 200 samples per case, no network, milliseconds. Timers in this webview tick in whole milliseconds, so read small values as about 1.
+
+| Case | Input to drawn, p50 / p95 / p99 | Wait to send | IPC, Session and pump, p50 / p95 | Decode | Wait to paint, p50 / p95 |
+|---|---|---|---|---|---|
+| Pointer, idle | 25 / 33 / 34 | 8 | 2 / 3 | 0 | 14 / 15 |
+| Pointer, RDP fixture (xrdp) | 26 / 33 / 34 | 9 | 3 / 3 | 0 | 14 / 15 |
+| Pointer, moving box | 33 / 49 / 50 | 10 | 5 / 24 | 0 | 12 / 14 |
+| Pointer, every pixel | 43 / 52 / 62 | 11 | 27 / 30 | 5 | 0 / 12 |
+| Key, idle | 12 / 19 / 21 | 0 | 3 / 4 | 0 | 8 / 16 |
+| Key, moving box | 27 / 33 / 33 | 0 | 16 / 23 | 0 | 11 / 12 |
+| Key, every pixel | 27 / 36 / 43 | 0 | 19 / 28 | 6 | 0 / 11 |
+
+| Case | Input to rendered, p50 / p95 / p99 | IPC, Session and pump | Parse | Wait to render |
+|---|---|---|---|---|
+| Terminal, idle | 11 / 19 / 22 | 2 | 0 | 9 |
+| Terminal, SSH fixture | 12 / 20 / 21 | 3 | 0 | 9 |
+| Terminal, flood | 121 / 126 / 128 | 64 | 43 | 14 |
+
+About 16 ms more passes before the next animation frame, on every line, and the compositor's share of that is not measured. An idle round trip of a command that does nothing takes 1 to 2 ms, so IPC is not the limit. A frame waits for its credit 16.6 ms on average with the moving box and 11 ms with every pixel changing. A busy Tab behind the one in use moved these numbers by 2 ms at most at p50. Of 500 inputs sent as fast as the webview could, all arrived and none out of order. After Ctrl+C, the benchmark flood's last byte arrived after 63 ms and was parsed after 111 ms, and `yes` on the SSH fixture took 377 ms.
+
+So most of the delay is Ela's own scheduling: waiting for animation frames and for the credit they return.
+
 **Verdict: Tauri stays.** Terminals have far more headroom than any SSH link needs. Framebuffers hit a transport ceiling of about 180 MB/s for raw pixels, which is enough for normal desktop work but not for full-screen motion. The webview remains the UI on these conditions:
 
 1. Dirty regions travel as several rectangles, not one bounding box.
@@ -99,5 +121,7 @@ Open the benchmarks from the sidebar in `bun tauri dev` (ideally `--release`) an
 | Full HD, every pixel | Painted fps | Close to 60 on a modern machine |
 | Full HD, moving box | Painted fps, Merged away | 60 fps, low merge rate |
 | 4K, every pixel | Painted fps | Smooth enough to be usable |
+
+"Input latency" runs every latency case by itself, and the fixture cases when `docker compose up` is running. It sends synthetic events, so it leaves out the input device and the webview's input queue, and it reads pixels back from the canvas to spot an echo. A slow-motion camera covers what it can't see. Keep the mouse out of the window while it runs: a real move also counts as an input.
 
 While a benchmark Tab is connected, the app also appends its throughput once per second to `~/.local/share/dev.ela.app/logs/benchmarks.jsonl`, so results don't have to be copied from the overlay.

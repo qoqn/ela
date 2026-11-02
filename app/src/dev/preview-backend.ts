@@ -1231,6 +1231,7 @@ export function install() {
                 encode_ns: 0,
                 send_ns: 0,
                 ack_wait_ns: 0,
+                credit_wait_ns: 0,
               },
             });
           }, 1000);
