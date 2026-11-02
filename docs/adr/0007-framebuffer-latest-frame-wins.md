@@ -4,4 +4,4 @@ For RDP, VNC and other Framebuffer Sessions, the backend merges dirty rectangles
 
 The pending update holds up to 16 rectangles, so small changes far apart don't become one almost full-screen update. Rectangles that overlap or touch are merged. If the list overflows, or the rectangles cover at least 75% of their bounding box, the update falls back to that box.
 
-A rectangle covering at least a quarter of the screen goes as JPEG, unless the Connection's `image_quality` is `lossless`. Once no lossy update has gone out for 200 ms, the areas sent lossy are sent again losslessly, so a still screen ends up exact.
+A rectangle covering at least a quarter of the screen goes as JPEG, unless the Connection's `image_quality` is `lossless`. Once no lossy update has gone out for 200 ms, the areas sent lossy are sent again losslessly, about 1 MB at a time so an input's echo never waits behind more than that, and a still screen ends up exact. A new lossy update puts off what is left.

@@ -434,8 +434,8 @@ async fn pump_frames(
         tokio::select! {
             _ = frame.changed() => {}
             _ = tokio::time::sleep_until(refine_at.unwrap_or_else(tokio::time::Instant::now)), if refine_at.is_some() => {
-                refine_at = None;
-                frame.queue_refine();
+                // The next band follows once this one is painted; a new lossy update puts it off.
+                refine_at = frame.queue_refine().then(tokio::time::Instant::now);
             }
             _ = cancel.cancelled() => return,
         }

@@ -389,8 +389,8 @@ mod tests {
         fn data(&self, message: Vec<u8>) {
             let frame = wire::parse_frame(&message).expect("frame message");
             self.messages.fetch_add(1, Ordering::SeqCst);
-            // The opening frame (JPEG bands) and its lossless pass cover the surface; the
-            // rest is the box.
+            // The opening frame (JPEG bands) and its lossless bands cover the surface; the rest is
+            // the box.
             if frame
                 .rects
                 .iter()
@@ -399,10 +399,8 @@ mod tests {
                 self.full_surface.lock().unwrap().0 += 1;
                 return;
             }
-            if let [only] = frame.rects.as_slice()
-                && only.rect == Rect::new(0, 0, 1920, 1080)
-            {
-                self.full_surface.lock().unwrap().1 += 1;
+            if let Some(band) = frame.rects.iter().find(|r| r.rect.w == 1920) {
+                self.full_surface.lock().unwrap().1 += u64::from(band.rect.h);
                 return;
             }
             assert!(
@@ -577,7 +575,10 @@ mod tests {
             stats.take_ns > 0 && stats.encode_ns > 0 && stats.send_ns > 0 && stats.ack_wait_ns > 0,
             "{stats:?}"
         );
-        // The opening frame goes lossy, then is sent again losslessly despite the moving box.
-        assert_eq!(*meter.full_surface.lock().unwrap(), (1, 1));
+        // The opening frame goes lossy, then is sent again losslessly despite the moving box, which
+        // can add its height where it touches a band.
+        let (lossy, lossless_rows) = *meter.full_surface.lock().unwrap();
+        assert_eq!(lossy, 1);
+        assert!(lossless_rows >= 1080, "{lossless_rows} rows");
     }
 }

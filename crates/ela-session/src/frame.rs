@@ -9,6 +9,9 @@ use crate::wire;
 const MAX_DIRTY_RECTS: usize = 16;
 /// A rect is large enough to send lossy when it covers at least 1/this of the surface.
 const LOSSY_SHARE: u64 = 4;
+// One whole lossless pass held the only credit for 24 ms at 1080p and 90 ms at 4K (ADR-0001), and
+// an input's echo waited behind it.
+const REFINE_BAND_BYTES: usize = 1024 * 1024;
 
 pub(crate) struct TakenFrame {
     pub message: Vec<u8>,
@@ -253,13 +256,24 @@ impl FrameStore {
         Some(TakenFrame { message, lossy })
     }
 
-    pub(crate) fn queue_refine(&self) {
+    pub(crate) fn queue_refine(&self) -> bool {
         let mut guard = self.inner.lock().unwrap();
         let inner = &mut *guard;
+        let Some(rect) = inner.lossy.pop() else {
+            return false;
+        };
         inner.refining = true;
-        for rect in std::mem::take(&mut inner.lossy) {
+        let rows = REFINE_BAND_BYTES / (usize::from(inner.width) * 4);
+        let rows = u16::try_from(rows).unwrap_or(u16::MAX).max(1);
+        if rect.h > rows {
+            add_dirty(&mut inner.dirty, Rect::new(rect.x, rect.y, rect.w, rows));
+            inner
+                .lossy
+                .push(Rect::new(rect.x, rect.y + rows, rect.w, rect.h - rows));
+        } else {
             add_dirty(&mut inner.dirty, rect);
         }
+        !inner.lossy.is_empty()
     }
 }
 
@@ -437,6 +451,31 @@ mod tests {
     }
 
     #[test]
+    fn a_large_lossless_pass_goes_in_bands_that_cover_it_exactly() {
+        let store = FrameStore::new();
+        store.resize(2000, 1000);
+        let _ = store.take_message(false);
+        store.draw(|_, _, _| Some(Rect::new(0, 0, 2000, 1000)));
+        let _ = store.take_message(true);
+
+        let mut next_y = 0;
+        let mut more = true;
+        while more {
+            more = store.queue_refine();
+            let refined = store.take_message(true).expect("a band");
+            assert!(refined.lossy.is_empty());
+            let frame = wire::parse_frame(&refined.message).unwrap();
+            let [band] = frame.rects.as_slice() else {
+                panic!("one band at a time");
+            };
+            assert_eq!((band.rect.y, band.rect.w), (next_y, 2000));
+            assert!(band.data.len() <= REFINE_BAND_BYTES);
+            next_y += band.rect.h;
+        }
+        assert_eq!(next_y, 1000);
+    }
+
+    #[test]
     fn refining_resends_lossy_rects_losslessly_once() {
         let large = Rect::new(0, 0, 50, 50);
         let store = store_with(large);
@@ -449,7 +488,7 @@ mod tests {
         assert_eq!(rects.rects[0].rect, large);
 
         // Nothing is left to refine, and later large updates may go lossy again.
-        store.queue_refine();
+        assert!(!store.queue_refine());
         assert!(store.take_message(true).is_none());
         store.draw(|_, _, _| Some(large));
         assert_eq!(store.take_message(true).unwrap().lossy, [large]);
