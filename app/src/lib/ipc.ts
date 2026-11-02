@@ -34,6 +34,7 @@ export type {
   RecentEntry,
   RemoteEntry,
   RemoteListing,
+  RemoteCursor,
   RendererKind,
   SavedProblem,
   SessionStats,

@@ -290,12 +290,14 @@ async function keyMarked(tab: SessionTab) {
   return { samples: trace.samples, extra: { timeouts: trace.timeouts } };
 }
 
-// Without a mark to read, the echo of a remote cursor is the first paint over where it went.
+// Without a mark to read, a move's echo would be a paint over where it went. The cursor is local
+// since it stopped being painted, so a run of misses is the expected result.
 async function pointerOnDesktop(tab: SessionTab) {
   const trace = new FrameTrace();
   tab.frameProbe = trace;
   const pointer = tab.drive!.pointer!;
   for (let i = 0; i < PROBES; i++) {
+    if (trace.timeouts >= 5 && !trace.samples.length) break;
     await gap();
     let to = { x: 0, y: 0 };
     await trace.one(

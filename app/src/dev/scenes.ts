@@ -534,6 +534,14 @@ export function loadScene(name: string | null) {
     );
     return;
   }
+  if (name === 'remotecursor' || name === 'remotecursorhidden') {
+    const desktop = workspace.open(
+      { protocol: 'rdp', host: 'win-ad.corp', username: 'Administrator' },
+      { name: 'win-ad', env: 'dev' },
+    );
+    desktop.remoteCursor = name === 'remotecursor' ? sampleCursor() : { shape: 'hidden' };
+    return;
+  }
   if (!name || !['busy', 'failure', 'desktop'].includes(name)) return;
   const open = workspace.open.bind(workspace);
   open(
@@ -551,4 +559,14 @@ export function loadScene(name: string | null) {
   open({ protocol: 'ssh', host: 'slow-nas.lan', username: 'admin' }, { name: 'nas', env: 'lab' });
   open({ protocol: 'ssh', host: 'fail-pi.lan', username: 'pi' }, { name: 'pi-hole', env: 'none' });
   workspace.activeKey = workspace.tabs[{ busy: 0, desktop: 2, failure: 4 }[name as 'busy']].key;
+}
+
+function sampleCursor() {
+  const [width, height] = [32, 32];
+  const rgba = Array.from({ length: width * height * 4 }, (_, i) => {
+    const [x, y] = [(i >> 2) % width, Math.floor((i >> 2) / width)];
+    const inside = x <= y && x + y < 40;
+    return i % 4 === 3 ? (inside ? 255 : 0) : 220;
+  });
+  return { shape: 'image', width, height, hot_x: 0, hot_y: 0, rgba } as const;
 }

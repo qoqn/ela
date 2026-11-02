@@ -142,9 +142,9 @@ export type ForwardFailure = "prohibited" | "unreachable" | "other";
 
 export type FrontendEvent = FrontendEvent_Serialize | FrontendEvent_Deserialize;
 
-export type FrontendEvent_Deserialize = { type: "status"; status: SessionStatus_Deserialize } | { type: "stats"; stats: SessionStats } | { type: "clipboard_write"; text: string } | { type: "clipboard_read" };
+export type FrontendEvent_Deserialize = { type: "status"; status: SessionStatus_Deserialize } | { type: "stats"; stats: SessionStats } | { type: "clipboard_write"; text: string } | { type: "clipboard_read" } | { type: "cursor"; cursor: RemoteCursor };
 
-export type FrontendEvent_Serialize = { type: "status"; status: SessionStatus_Serialize } | { type: "stats"; stats: SessionStats } | { type: "clipboard_write"; text: string } | { type: "clipboard_read" };
+export type FrontendEvent_Serialize = { type: "status"; status: SessionStatus_Serialize } | { type: "stats"; stats: SessionStats } | { type: "clipboard_write"; text: string } | { type: "clipboard_read" } | { type: "cursor"; cursor: RemoteCursor };
 
 export type HostKeyCode = "ControlRight" | "AltRight" | "ShiftRight" | "ContextMenu" | "ScrollLock" | "Pause";
 
@@ -314,6 +314,8 @@ export type RecentEntry = {
 	id: string,
 	opened: number,
 };
+
+export type RemoteCursor = { shape: "default" } | { shape: "hidden" } | { shape: "image"; width: number; height: number; hot_x: number; hot_y: number; rgba: number[] };
 
 export type RemoteEntry = RemoteEntry_Serialize | RemoteEntry_Deserialize;
 

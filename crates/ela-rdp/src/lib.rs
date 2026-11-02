@@ -10,9 +10,9 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use clipboard::{ClipboardBridge, ClipboardEvent};
 use ela_session::{
-    Capabilities, ExposeSecret, PasswordNote, Prompt, Protocol, Rect, RendererKind, ResolvedConfig,
-    SecretString, Session, SessionCommand, SessionError, SessionIo, SessionSink, SessionStatus,
-    Size,
+    Capabilities, ExposeSecret, PasswordNote, Prompt, Protocol, Rect, RemoteCursor, RendererKind,
+    ResolvedConfig, SecretString, Session, SessionCommand, SessionError, SessionIo, SessionSink,
+    SessionStatus, Size,
 };
 use ela_transport::{
     CONNECT_TIMEOUT, Opened, ROUTE_OPTION, Route, RouteStream, Transport, route_field,
@@ -33,6 +33,7 @@ use ironrdp_displaycontrol::pdu::MonitorLayoutEntry;
 use ironrdp_dvc::DrdynvcClient;
 use ironrdp_egfx::client::{GraphicsPipelineClient, GraphicsPipelineHandler};
 use ironrdp_graphics::image_processing::PixelFormat;
+use ironrdp_graphics::pointer::DecodedPointer;
 use ironrdp_input::{Database, MouseButton, MousePosition, Operation, Scancode, WheelRotations};
 use ironrdp_pdu::gcc::{ConnectionType, KeyboardType};
 use ironrdp_pdu::geometry::{InclusiveRectangle, Rectangle as _};
@@ -500,7 +501,7 @@ fn build_config(config: &ResolvedConfig, redirect: Option<&Redirect>) -> ironrdp
             MajorPlatformType::UNIX
         },
         enable_server_pointer: true,
-        pointer_software_rendering: true,
+        pointer_software_rendering: false,
         request_data: None,
         // Send the password in Client Info too, so servers without NLA (xrdp, older
         // Windows) log in directly instead of showing their own login screen.
@@ -935,10 +936,27 @@ async fn handle_outputs(
             }
             ActiveStageOutput::DeactivateAll => return Ok(Flow::Reactivate),
             ActiveStageOutput::ServerRedirection(pdu) => return Ok(Flow::Redirect(pdu)),
+            ActiveStageOutput::PointerDefault => sink.cursor(RemoteCursor::Default),
+            ActiveStageOutput::PointerHidden => sink.cursor(RemoteCursor::Hidden),
+            ActiveStageOutput::PointerBitmap(pointer) => sink.cursor(remote_cursor(&pointer)),
+            // Includes PointerPosition: a webview can't move the local cursor.
             _ => {}
         }
     }
     Ok(Flow::Continue)
+}
+
+fn remote_cursor(pointer: &DecodedPointer) -> RemoteCursor {
+    if pointer.width == 0 || pointer.height == 0 {
+        return RemoteCursor::Hidden;
+    }
+    RemoteCursor::Image {
+        width: pointer.width,
+        height: pointer.height,
+        hot_x: pointer.hotspot_x,
+        hot_y: pointer.hotspot_y,
+        rgba: pointer.bitmap_data.clone(),
+    }
 }
 
 fn publish(image: &DecodedImage, rect: &InclusiveRectangle, sink: &SessionSink) {

@@ -11,6 +11,7 @@ import type {
   OpenRequest,
   PromptReply,
   ProtocolInfo,
+  RemoteCursor,
   RendererKind,
   SessionCommand,
   SessionStats,
@@ -109,6 +110,7 @@ export class SessionTab {
   #prevStats: SessionStats | null = null;
   statsRate = $state<{ produced: number; sent: number } | null>(null);
   #backendStages: Record<string, number> = {};
+  remoteCursor = $state<RemoteCursor>({ shape: 'default' });
   drive: Drive | null = null;
   frameProbe: FrameProbe | null = null;
   terminalProbe: TerminalProbe | null = null;
@@ -209,6 +211,8 @@ export class SessionTab {
     } else if (ev.type === 'clipboard_read') {
       if (!this.clipboardSync) return this.input({ type: 'clipboard_text', text: null });
       void pasteText().then((text) => this.input({ type: 'clipboard_text', text }));
+    } else if (ev.type === 'cursor') {
+      this.remoteCursor = ev.cursor;
     } else if (ev.type === 'status') {
       this.status = ev.status;
       this.progress = advance(this.progress, ev.status);

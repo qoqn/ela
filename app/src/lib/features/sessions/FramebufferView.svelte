@@ -5,6 +5,7 @@
   import { runCommand, shell } from '../../shell/shell.svelte';
   import { hostKey, type KeyDecision } from '../../shell/shortcuts';
   import { MARK_ROW, MARK_WIDTH, markValue } from '../devtools/latencyStats';
+  import { cursorStyle } from './remoteCursor';
 
   const RESIZE_DEBOUNCE_MS = 300;
 
@@ -17,6 +18,7 @@
   let canvas: HTMLCanvasElement;
   let displayW = $state(0);
   let displayH = $state(0);
+  let viewScale = $state(1);
 
   // With one credit in flight at most one frame waits here; the backend merges everything else
   // (ADR-0007).
@@ -33,6 +35,7 @@
         : Math.min(container.clientWidth / canvas.width, container.clientHeight / canvas.height);
     displayW = Math.floor(canvas.width * scale);
     displayH = Math.floor(canvas.height * scale);
+    viewScale = scale;
   }
 
   async function decode(msg: ArrayBuffer): Promise<DecodedFrame | null> {
@@ -188,6 +191,8 @@
     };
   });
 
+  const cursor = $derived(cursorStyle(tab.remoteCursor, viewScale, window.devicePixelRatio || 1));
+
   // A derived flag, so other status changes don't pull focus away from where the user is.
   const awaitingUser = $derived(tab.linkState === 'waiting');
 
@@ -254,6 +259,7 @@
       class="m-auto shrink-0 outline-none"
       style:width="{displayW}px"
       style:height="{displayH}px"
+      style:cursor
       onkeydown={onKeydown}
       onkeyup={onKeyup}
       onfocus={() => {

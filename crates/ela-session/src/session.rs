@@ -11,7 +11,7 @@ use ela_core::CredentialRef;
 use secrecy::SecretString;
 use uuid::Uuid;
 
-use crate::{FrameStore, FrontendEvent, RemoteFiles, SessionError};
+use crate::{FrameStore, FrontendEvent, RemoteCursor, RemoteFiles, SessionError};
 
 #[async_trait]
 pub trait Session: Send {
@@ -251,6 +251,10 @@ impl SessionSink {
 
     pub fn clipboard_write(&self, text: String) {
         let _ = self.events.send(FrontendEvent::ClipboardWrite { text });
+    }
+
+    pub fn cursor(&self, cursor: RemoteCursor) {
+        let _ = self.events.send(FrontendEvent::Cursor { cursor });
     }
 
     pub fn clipboard_read(&self) {

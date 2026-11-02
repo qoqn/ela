@@ -57,6 +57,7 @@ Run `bun run dev` and open `http://localhost:1420/?scene=busy` in a browser. The
 | `treeconnect`, `treeopen`, `treefailed` | Connecting from the tree, an SSH Connection without a password connecting straight away with its LED, and "Edit connection" on failure |
 | (none), `importask`, `importnotes` | "Import SSH hosts" on the empty tree, the dialog it opens first, and its report of what was left out |
 | `treeroot` | Nothing selected, with the menu for the top of the tree |
+| `remotecursor`, `remotecursorhidden` | A remote desktop with the server's cursor shape over it, and with the cursor hidden. Point at the desktop to see it: screenshots leave the cursor out |
 | `devtools` | The Development tools dialog (development builds only), with the input latency run last under Benchmarks. The run opens and closes its own Tabs and ends with a toast |
 | `reconnect` | Reconnecting a Session that was opened with a typed password |
 | `treetrash` | The undo toast |

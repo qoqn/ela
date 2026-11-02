@@ -22,6 +22,7 @@ struct Recorder {
     statuses: Mutex<Vec<SessionStatus>>,
     clipboard: Mutex<Vec<String>>,
     clipboard_reads: Mutex<usize>,
+    cursors: Mutex<Vec<ela_session::RemoteCursor>>,
 }
 
 impl Recorder {
@@ -84,6 +85,7 @@ impl Frontend for Recorder {
             FrontendEvent::Status { status } => self.statuses.lock().unwrap().push(status),
             FrontendEvent::ClipboardWrite { text } => self.clipboard.lock().unwrap().push(text),
             FrontendEvent::ClipboardRead => *self.clipboard_reads.lock().unwrap() += 1,
+            FrontendEvent::Cursor { cursor } => self.cursors.lock().unwrap().push(cursor),
             FrontendEvent::Stats { .. } => {}
         }
     }
@@ -404,6 +406,27 @@ async fn resizing_changes_the_remote_desktop_and_it_repaints() {
     })
     .await;
     assert!(rec.closed().is_none(), "{:?}", rec.closed());
+    close(&mgr, &rec, id).await;
+}
+
+#[tokio::test]
+#[ignore = "needs the dev/compose.yml RDP fixture"]
+async fn the_servers_cursor_reaches_the_ui_instead_of_the_screen() {
+    let _turn = ONE_AT_A_TIME.lock().await;
+    let (_dir, pins) = pin_file();
+    let mgr = manager(&pins);
+    let (rec, id) = connect_to_desktop(&mgr).await;
+
+    let image = |cursor: &ela_session::RemoteCursor| {
+        matches!(cursor, ela_session::RemoteCursor::Image { width, height, hot_x, hot_y, rgba }
+            if rgba.len() == usize::from(*width) * usize::from(*height) * 4
+                && hot_x < width && hot_y < height)
+    };
+    until("the server names a cursor", || {
+        mgr.ack(id);
+        rec.cursors.lock().unwrap().iter().any(image)
+    })
+    .await;
     close(&mgr, &rec, id).await;
 }
 

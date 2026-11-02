@@ -17,7 +17,9 @@ pub use files::{
 };
 pub use frame::{FrameStore, Rect};
 pub use known_host::{KnownHost, KnownHostList, rewrite_keeping_backup};
-pub use manager::{Frontend, FrontendEvent, Resolve, SessionId, SessionManager, SessionStats};
+pub use manager::{
+    Frontend, FrontendEvent, RemoteCursor, Resolve, SessionId, SessionManager, SessionStats,
+};
 pub use protocol::{
     Capabilities, Protocol, ProtocolInfo, ProtocolRegistry, RendererKind, check_options,
 };

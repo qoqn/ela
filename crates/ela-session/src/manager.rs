@@ -40,6 +40,21 @@ pub enum FrontendEvent {
     Stats { stats: SessionStats },
     ClipboardWrite { text: String },
     ClipboardRead,
+    Cursor { cursor: RemoteCursor },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, specta::Type)]
+#[serde(tag = "shape", rename_all = "snake_case")]
+pub enum RemoteCursor {
+    Default,
+    Hidden,
+    Image {
+        width: u16,
+        height: u16,
+        hot_x: u16,
+        hot_y: u16,
+        rgba: Vec<u8>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, specta::Type)]
