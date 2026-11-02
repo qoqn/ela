@@ -12,6 +12,7 @@ const ECHO_TIMEOUT_MS = 1000;
 const SETTLE_MS = 3000;
 const BEL = 7;
 const BURST = 500;
+const MANY_TABS = 24;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const now = () => performance.now();
@@ -209,10 +210,10 @@ async function record(tab: SessionTab, name: string, stages: Stages) {
   });
 }
 
-// `?latency=key` runs only the cases with that in their name.
+// `?latency=key|flood` runs only the cases with one of those in their name.
 function wanted(name: string) {
   const only = new URLSearchParams(location.search).get('latency');
-  return !only || only === '1' || name.includes(only);
+  return !only || only === '1' || only.split('|').some((part) => name.includes(part));
 }
 
 async function withTab(
@@ -339,11 +340,14 @@ async function typedInShell(tab: SessionTab) {
   return { samples: trace.samples, extra: { timeouts: trace.timeouts } };
 }
 
-async function untilOutputStops(trace: TerminalTrace, type: (data: string) => void) {
+async function untilOutputStops(tab: SessionTab, trace: TerminalTrace) {
+  const type = tab.drive!.type!;
+  const flood_mb_per_s = tab.meter.bytesPerSec / 1_000_000;
   const pressed = now();
   type('\x03');
   while (now() - Math.max(trace.lastReceived, trace.lastWritten) < 500) await sleep(20);
   return {
+    flood_mb_per_s,
     ctrl_c_to_last_received: trace.lastReceived - pressed,
     ctrl_c_to_last_parsed: trace.lastWritten - pressed,
   };
@@ -351,7 +355,7 @@ async function untilOutputStops(trace: TerminalTrace, type: (data: string) => vo
 
 async function floodThenCtrlC(tab: SessionTab) {
   const typed = await typedMarked(tab);
-  const stopped = await untilOutputStops(tab.terminalProbe as TerminalTrace, tab.drive!.type!);
+  const stopped = await untilOutputStops(tab, tab.terminalProbe as TerminalTrace);
   return { samples: typed.samples, extra: { ...typed.extra, ...stopped } };
 }
 
@@ -360,7 +364,7 @@ async function shellThenCtrlC(tab: SessionTab) {
   const trace = tab.terminalProbe as TerminalTrace;
   tab.drive!.type!('yes\n');
   await sleep(SETTLE_MS);
-  const stopped = await untilOutputStops(trace, tab.drive!.type!);
+  const stopped = await untilOutputStops(tab, trace);
   return { samples: typed.samples, extra: { ...typed.extra, ...stopped } };
 }
 
@@ -379,6 +383,27 @@ async function burstOrder(tab: SessionTab) {
       burst_out_of_order: inversions(trace.echoes),
     },
   };
+}
+
+async function manyTerminals() {
+  const tabs = Array.from({ length: MANY_TABS }, (_, i) =>
+    workspace.open(terminal('idle'), { name: `Latency: Tab ${i + 1}`, env: 'lab' }),
+  );
+  await sleep(SETTLE_MS);
+  const lost = tabs.filter((tab) => tab.drawBackend !== 'webgl').length;
+  let activeWithoutWebgl = 0;
+  for (const tab of tabs) {
+    workspace.select(tab.key);
+    await sleep(200);
+    if (tab.drawBackend !== 'webgl') activeWithoutWebgl++;
+  }
+  await record(tabs[0], 'terminal, many Tabs', {
+    tabs: tabs.length,
+    webgl_lost_behind: lost,
+    active_without_webgl: activeWithoutWebgl,
+  });
+  for (const tab of tabs) workspace.closeTab(tab.key);
+  await sleep(500);
 }
 
 function framebuffer(mode: string): OpenRequest {
@@ -410,6 +435,7 @@ export async function measureInputLatency() {
   await withTab('terminal, idle', terminal('idle'), typedMarked);
   await withTab('terminal, flood', terminal('flood'), floodThenCtrlC);
   await withTab('input order', terminal('idle'), burstOrder);
+  if (wanted('terminal, many Tabs')) await manyTerminals();
 
   if (wanted('busy Tab behind')) {
     const busy = workspace.open(framebuffer('full'), { name: 'Latency: busy Tab', env: 'lab' });
