@@ -155,6 +155,7 @@ All shortcuts can be rebound in Settings. Conflicts are shown inline before savi
 - Right-click in a terminal opens Ela's `Menu`: "Copy", greyed out while nothing is selected, "Paste", "Find", and "Open Files here" when the Protocol has the `file_transfer` capability. "Here" is the folder the shell last reported (OSC 7). A shell that doesn't report it leaves Files on the folder the Tab remembers. Split joins the menu when it exists.
 - Hold `Shift` to pass the right-click to the remote application, for a program that uses the mouse. Without such a program it does nothing.
 - Over a remote desktop the cursor is the local one wearing the server's shape, so it moves with no delay at any latency. The server's hide hides it, and until the server names a shape it is the usual arrow. The shape scales with the view, up to 128 px, the most a webview cursor can safely be. A server that moves the cursor itself can't move this one: a webview has no way to.
+- A remote desktop out of view stops updating to save CPU and bandwidth, and shows the current screen as soon as its Tab or the window is back. Nothing keeps running in it for the user to miss: the remote session itself carries on.
 - Middle-click on a Tab closes it.
 - Scroll over the tab strip switches Tabs.
 

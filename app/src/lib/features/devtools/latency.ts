@@ -13,6 +13,7 @@ const SETTLE_MS = 3000;
 const BEL = 7;
 const BURST = 500;
 const MANY_TABS = 24;
+const HIDDEN_MS = 20_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const now = () => performance.now();
@@ -385,6 +386,27 @@ async function burstOrder(tab: SessionTab) {
   };
 }
 
+async function hiddenTabCost() {
+  const hidden = workspace.open(framebuffer('full'), { name: 'Latency: hidden', env: 'lab' });
+  await sleep(SETTLE_MS);
+  const shown = workspace.open(terminal('idle'), { name: 'Latency: shown', env: 'lab' });
+  await sleep(HIDDEN_MS);
+  await record(hidden, 'hidden Tab', {
+    hidden_paints_per_s: hidden.meter.paintsPerSec,
+    hidden_mb_per_s: hidden.meter.bytesPerSec / 1_000_000,
+  });
+  const before = hidden.meter.paintsPerSec;
+  workspace.select(hidden.key);
+  await sleep(1500);
+  await record(hidden, 'hidden Tab, shown again', {
+    paints_per_s_when_hidden: before,
+    paints_per_s_when_shown: hidden.meter.paintsPerSec,
+  });
+  workspace.closeTab(shown.key);
+  workspace.closeTab(hidden.key);
+  await sleep(500);
+}
+
 async function manyTerminals() {
   const tabs = Array.from({ length: MANY_TABS }, (_, i) =>
     workspace.open(terminal('idle'), { name: `Latency: Tab ${i + 1}`, env: 'lab' }),
@@ -457,6 +479,8 @@ export async function measureInputLatency() {
     pointerOnDesktop,
     true,
   );
+
+  if (wanted('hidden Tab')) await hiddenTabCost();
 
   await commands.recordBenchmark({
     run: 'input-latency',

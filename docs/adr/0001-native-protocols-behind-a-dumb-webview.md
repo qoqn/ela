@@ -120,6 +120,8 @@ Key, every pixel got worse. Those frames used to land just before an animation f
 
 Compare only runs taken close together, with the terminal flood as a control, since the code behind it did not change. For about 20 minutes after one boot, the same code ran every pixel at 30 fps instead of 60 and took 12 ms to encode instead of 4, with no change anyone made. The cause was not found.
 
+A Tab out of view, measured 2026-11-02 with a Full HD every-pixel Tab behind an idle terminal: 60 fps and 9.3 MB/s before, 0 fps and 0 MB/s after, and back to 60 fps within 1.5 s of showing it. CPU time for the whole 30-second run, app and webview processes together, went from 52 s to 14.5 s.
+
 **Verdict: Tauri stays.** Terminals have far more headroom than any SSH link needs. Framebuffers hit a transport ceiling of about 180 MB/s for raw pixels, which is enough for normal desktop work but not for full-screen motion. The webview remains the UI on these conditions:
 
 1. Dirty regions travel as several rectangles, not one bounding box.

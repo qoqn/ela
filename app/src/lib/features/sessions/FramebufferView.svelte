@@ -24,6 +24,10 @@
 
   let pendingMove: { x: number; y: number } | null = null;
   let moveTimer: ReturnType<typeof setTimeout> | undefined;
+  let ackHeld = false;
+  let toldShowing = true;
+  let pageVisible = $state(document.visibilityState === 'visible');
+  const showing = $derived(active && pageVisible);
 
   function layout() {
     if (!canvas.width || !container.clientWidth) return;
@@ -83,6 +87,12 @@
     return { x, y, w, h };
   }
 
+  // Without a credit the backend keeps merging updates, so showing again needs just the newest.
+  function ackWhenShowing() {
+    if (showing) tab.ack();
+    else ackHeld = true;
+  }
+
   function sendMove() {
     if (!pendingMove || moveTimer !== undefined) return;
     tab.input({ type: 'mouse_move', ...pendingMove });
@@ -124,7 +134,7 @@
             tab.meter.stage('draw', drawn - painting);
             tab.meter.painted();
             if (rects) tab.frameProbe?.painted({ received, painting, drawn }, rects);
-            tab.ack();
+            ackWhenShowing();
           })
           .catch((e) => {
             // Skip this update and keep the Session going; the next one may be fine.
@@ -171,6 +181,17 @@
   });
 
   const cursor = $derived(cursorStyle(tab.remoteCursor, viewScale, window.devicePixelRatio || 1));
+
+  $effect(() => {
+    if (tab.id && showing !== toldShowing) {
+      toldShowing = showing;
+      tab.input({ type: 'visibility', visible: showing });
+    }
+    if (showing && ackHeld) {
+      ackHeld = false;
+      tab.ack();
+    }
+  });
 
   // A derived flag, so other status changes don't pull focus away from where the user is.
   const awaitingUser = $derived(tab.linkState === 'waiting');
@@ -222,6 +243,10 @@
     tab.input({ type: 'wheel', vertical: -Math.sign(e.deltaY), horizontal: Math.sign(e.deltaX) });
   }
 </script>
+
+<svelte:document
+  onvisibilitychange={() => (pageVisible = document.visibilityState === 'visible')}
+/>
 
 <div class="relative h-full w-full bg-screen">
   <!-- 1:1 can be larger than the view, and then scrolls. `m-auto` centres without clipping. -->

@@ -451,11 +451,11 @@ export type SessionCommand = SessionCommand_Serialize | SessionCommand_Deseriali
 
 export type SessionCommand_Deserialize = { type: "text"; data: string } | { type: "key"; code: string; down: boolean } | { type: "mouse_move"; x: number; y: number } | { type: "mouse_button"; button: number; down: boolean; x: number; y: number } | 
 /**  Wheel notches; positive means away from the user (scroll up). */
-{ type: "wheel"; vertical: number; horizontal: number } | { type: "resize"; width: number; height: number } | { type: "release_all" } | { type: "clipboard_offer" } | { type: "clipboard_text"; text?: string | null };
+{ type: "wheel"; vertical: number; horizontal: number } | { type: "resize"; width: number; height: number } | { type: "release_all" } | { type: "visibility"; visible: boolean } | { type: "clipboard_offer" } | { type: "clipboard_text"; text?: string | null };
 
 export type SessionCommand_Serialize = { type: "text"; data: string } | { type: "key"; code: string; down: boolean } | { type: "mouse_move"; x: number; y: number } | { type: "mouse_button"; button: number; down: boolean; x: number; y: number } | 
 /**  Wheel notches; positive means away from the user (scroll up). */
-{ type: "wheel"; vertical: number; horizontal: number } | { type: "resize"; width: number; height: number } | { type: "release_all" } | { type: "clipboard_offer" } | { type: "clipboard_text"; text: string | null };
+{ type: "wheel"; vertical: number; horizontal: number } | { type: "resize"; width: number; height: number } | { type: "release_all" } | { type: "visibility"; visible: boolean } | { type: "clipboard_offer" } | { type: "clipboard_text"; text: string | null };
 
 export type SessionError = { kind: "host_unreachable"; detail: string } | { kind: "timeout" } | { kind: "auth_failed"; detail: string } | { kind: "host_key_changed"; detail: string } | { kind: "host_key_revoked"; detail: string } | { kind: "certificate_untrusted"; detail: string } | { kind: "protocol"; detail: string } | { kind: "unknown_protocol"; detail: string } | { kind: "unknown_session" } | { kind: "cancelled" } | { kind: "jump_host"; detail: {
 	jump_host: string,

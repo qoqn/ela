@@ -40,7 +40,9 @@ use ironrdp_pdu::geometry::{InclusiveRectangle, Rectangle as _};
 use ironrdp_pdu::nego::SecurityProtocol;
 use ironrdp_pdu::rdp::capability_sets::{MajorPlatformType, RailSupportLevel};
 use ironrdp_pdu::rdp::client_info::{PerformanceFlags, TimezoneInfo};
+use ironrdp_pdu::rdp::headers::ShareDataPdu;
 use ironrdp_pdu::rdp::server_redirection::ServerRedirectionPdu;
+use ironrdp_pdu::rdp::suppress_output::SuppressOutputPdu;
 use ironrdp_pdu::{Action, PduResult};
 use ironrdp_session::image::DecodedImage;
 use ironrdp_session::{ActiveStage, ActiveStageBuilder, ActiveStageOutput};
@@ -670,6 +672,7 @@ async fn serve(link: Link, io: &mut SessionIo) -> Result<Option<Redirected>, Ses
     } = link;
     let (mut width, mut height) = (result.desktop_size.width, result.desktop_size.height);
     let (io_channel_id, user_channel_id) = (result.io_channel_id, result.user_channel_id);
+    let suppress_output_support = result.suppress_output_support;
     let (enable_server_pointer, pointer_software_rendering) = (
         result.enable_server_pointer,
         result.pointer_software_rendering,
@@ -707,6 +710,13 @@ async fn serve(link: Link, io: &mut SessionIo) -> Result<Option<Redirected>, Ses
                     SessionCommand::Resize { width: wanted_width, height: wanted_height } => {
                         let frame = encode_resize(&mut stage, (wanted_width, wanted_height), (width, height));
                         write_frame(&mut framed, &frame).await?;
+                        continue;
+                    }
+                    SessionCommand::Visibility { visible } => {
+                        if suppress_output_support {
+                            let frame = encode_visibility(&stage, visible, (width, height))?;
+                            write_frame(&mut framed, &frame).await?;
+                        }
                         continue;
                     }
                     SessionCommand::ClipboardOffer => {
@@ -863,6 +873,27 @@ fn encode_resize(stage: &mut ActiveStage, wanted: (u32, u32), current: (u16, u16
     }
 }
 
+fn encode_visibility(
+    stage: &ActiveStage,
+    visible: bool,
+    (width, height): (u16, u16),
+) -> Result<Vec<u8>, SessionError> {
+    let desktop_rect = visible.then(|| InclusiveRectangle {
+        left: 0,
+        top: 0,
+        right: width.saturating_sub(1),
+        bottom: height.saturating_sub(1),
+    });
+    let mut frame = WriteBuf::new();
+    stage
+        .encode_static(
+            &mut frame,
+            ShareDataPdu::SuppressOutput(SuppressOutputPdu { desktop_rect }),
+        )
+        .map_err(session_error)?;
+    Ok(frame.into_inner())
+}
+
 async fn write_frame(framed: &mut TlsFramed, frame: &[u8]) -> Result<(), SessionError> {
     if frame.is_empty() {
         return Ok(());
@@ -1017,6 +1048,7 @@ fn to_operations(cmd: SessionCommand, width: u16, height: u16) -> Vec<Operation>
         SessionCommand::ReleaseAll
         | SessionCommand::Text { .. }
         | SessionCommand::Resize { .. }
+        | SessionCommand::Visibility { .. }
         | SessionCommand::ClipboardOffer
         | SessionCommand::ClipboardText { .. } => vec![],
     }

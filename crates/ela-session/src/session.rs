@@ -58,6 +58,9 @@ pub enum SessionCommand {
         height: u32,
     },
     ReleaseAll,
+    Visibility {
+        visible: bool,
+    },
     ClipboardOffer,
     ClipboardText {
         text: Option<String>,

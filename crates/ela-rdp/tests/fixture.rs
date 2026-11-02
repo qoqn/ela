@@ -430,6 +430,37 @@ async fn the_servers_cursor_reaches_the_ui_instead_of_the_screen() {
     close(&mgr, &rec, id).await;
 }
 
+#[tokio::test]
+#[ignore = "needs the dev/compose.yml RDP fixture"]
+async fn a_hidden_desktop_is_quiet_and_repaints_when_shown() {
+    let _turn = ONE_AT_A_TIME.lock().await;
+    let (_dir, pins) = pin_file();
+    let mgr = manager(&pins);
+    let (rec, id) = connect_to_desktop(&mgr).await;
+
+    let send = |visible| {
+        mgr.send(id, SessionCommand::Visibility { visible })
+            .unwrap()
+    };
+    send(false);
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    mgr.ack(id);
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let frames_hidden = rec.frames.lock().unwrap().len();
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    mgr.ack(id);
+    assert_eq!(rec.frames.lock().unwrap().len(), frames_hidden);
+
+    send(true);
+    until("the desktop repaints", || {
+        mgr.ack(id);
+        rec.frames.lock().unwrap().len() > frames_hidden
+    })
+    .await;
+    assert!(rec.closed().is_none(), "{:?}", rec.closed());
+    close(&mgr, &rec, id).await;
+}
+
 fn in_desktop(script: &str) -> std::process::Output {
     // The running Xorg names the display: a restarted container keeps stale sockets in /tmp.
     let display = "$(pgrep -u ela -a Xorg | grep -oE ' :[0-9]+' | head -1 | tr -d ' ')";
