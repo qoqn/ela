@@ -134,6 +134,8 @@ Ctrl+C during `yes` on the SSH fixture, time until the last byte arrives, measur
 
 Rate times time stays near the window, so the window holds most of what still prints. Smaller queues in Ela looked good against the benchmark flood, where typing during a flood went from 73 to 25 ms, but that flood has no SSH window, and against a real server they made things worse. They stayed as they are. The window applies to the whole connection, and SFTP keeps 16 reads in flight, so a smaller one also limits downloads to about window / round trip. Typing itself takes 11 to 12 ms to reach the screen on the SSH fixture, nearly all of it waiting for xterm's next animation frame.
 
+The window is now 1 MB, half of what OpenSSH uses: Ctrl+C stops output in about 150 ms, and downloads are limited to about 50 MB/s at a 20 ms round trip and 10 MB/s at 100 ms. Those limits are worked out, not measured. Local echo is not built: it only helps on a slow link, none has been measured, and it brings desync and the risk of showing a password.
+
 **Verdict: Tauri stays.** Terminals have far more headroom than any SSH link needs. Framebuffers hit a transport ceiling of about 180 MB/s for raw pixels, which is enough for normal desktop work but not for full-screen motion. The webview remains the UI on these conditions:
 
 1. Dirty regions travel as several rectangles, not one bounding box.

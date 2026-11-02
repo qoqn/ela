@@ -433,6 +433,9 @@ async fn sign_in(
         keepalive_interval: keepalive,
         keepalive_max: 3,
         nodelay: true,
+        // Most of what still prints after Ctrl+C sits in this window, and it also caps downloads at
+        // window / round trip (ADR-0001).
+        window_size: 1024 * 1024,
         ..Default::default()
     });
     let awaiting_user = Arc::new(AtomicBool::new(false));
