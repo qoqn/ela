@@ -572,7 +572,10 @@ mod tests {
             .unwrap()
             .expect("stats arrive every second");
         assert!(
-            stats.take_ns > 0 && stats.encode_ns > 0 && stats.send_ns > 0 && stats.ack_wait_ns > 0,
+            stats.take_ns > 0
+                && stats.encode_ns > 0
+                && stats.send_ns > 0
+                && stats.credit_wait_ns > 0,
             "{stats:?}"
         );
         // The opening frame goes lossy, then is sent again losslessly despite the moving box, which

@@ -65,7 +65,6 @@ pub struct SessionStats {
     pub take_ns: u64,
     pub encode_ns: u64,
     pub send_ns: u64,
-    pub ack_wait_ns: u64,
     pub credit_wait_ns: u64,
 }
 
@@ -77,7 +76,6 @@ struct Counters {
     take_ns: AtomicU64,
     encode_ns: AtomicU64,
     send_ns: AtomicU64,
-    ack_wait_ns: AtomicU64,
     credit_wait_ns: AtomicU64,
 }
 
@@ -248,7 +246,6 @@ impl SessionManager {
                         take_ns: counters.take_ns.load(Ordering::Relaxed),
                         encode_ns: counters.encode_ns.load(Ordering::Relaxed),
                         send_ns: counters.send_ns.load(Ordering::Relaxed),
-                        ack_wait_ns: counters.ack_wait_ns.load(Ordering::Relaxed),
                         credit_wait_ns: counters.credit_wait_ns.load(Ordering::Relaxed),
                     },
                 });
@@ -428,7 +425,6 @@ async fn pump_frames(
     let add_time = |counter: &AtomicU64, since: Instant| {
         counter.fetch_add(since.elapsed().as_nanos() as u64, Ordering::Relaxed);
     };
-    let mut handed_over = None;
     let mut refine_at: Option<tokio::time::Instant> = None;
     loop {
         tokio::select! {
@@ -444,9 +440,6 @@ async fn pump_frames(
             return;
         }
         add_time(&counters.credit_wait_ns, changed);
-        if let Some(since) = handed_over.take() {
-            add_time(&counters.ack_wait_ns, since);
-        }
         let taking = Instant::now();
         let taken = frame.take_message(allow_lossy);
         add_time(&counters.take_ns, taking);
@@ -476,7 +469,6 @@ async fn pump_frames(
                 let sending = Instant::now();
                 frontend.data(msg);
                 add_time(&counters.send_ns, sending);
-                handed_over = Some(Instant::now());
             }
             None => credits.add_permits(1),
         }

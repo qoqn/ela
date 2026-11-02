@@ -230,7 +230,6 @@ export class SessionTab {
             take: perFrame(ev.stats.take_ns, prev.take_ns),
             encode: perFrame(ev.stats.encode_ns, prev.encode_ns),
             send: perFrame(ev.stats.send_ns, prev.send_ns),
-            ack_wait: perFrame(ev.stats.ack_wait_ns, prev.ack_wait_ns),
             credit_wait: perFrame(ev.stats.credit_wait_ns, prev.credit_wait_ns),
           };
         }

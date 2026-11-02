@@ -1276,8 +1276,8 @@ impl Session for SshSession {
         }
         let (mut reader, writer) = channel.split();
 
-        // Output runs in its own task so a slow UI (backpressure) never blocks input:
-        // Ctrl+C must get through while a flood is still being drawn.
+        // Output runs in its own task so Ctrl+C gets through while a flood is still being drawn.
+        // Once russh's channel buffer is full its session loop waits for room, and input with it.
         let sink = io.sink.clone();
         let mut output = tokio::spawn(async move {
             while let Some(msg) = reader.wait().await {

@@ -475,7 +475,6 @@ export type SessionStats = {
 	take_ns: number,
 	encode_ns: number,
 	send_ns: number,
-	ack_wait_ns: number,
 	credit_wait_ns: number,
 };
 

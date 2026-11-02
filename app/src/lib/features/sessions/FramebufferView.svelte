@@ -144,23 +144,25 @@
       },
     );
 
-    tab.drive = {
-      pointer(step) {
-        const r = canvas.getBoundingClientRect();
-        const event = new MouseEvent('mousemove', {
-          bubbles: true,
-          clientX: r.left + r.width * (step % 2 ? 0.6 : 0.4),
-          clientY: r.top + r.height * 0.5,
-        });
-        canvas.dispatchEvent(event);
-        return toRemote(event);
-      },
-      key(down) {
-        const type = down ? 'keydown' : 'keyup';
-        canvas.dispatchEvent(new KeyboardEvent(type, { bubbles: true, code: 'KeyQ' }));
-      },
-      mark: () => markValue(ctx.getImageData(0, MARK_ROW, MARK_WIDTH, 1).data),
-    };
+    if (import.meta.env.DEV) {
+      tab.drive = {
+        pointer(step) {
+          const r = canvas.getBoundingClientRect();
+          const event = new MouseEvent('mousemove', {
+            bubbles: true,
+            clientX: r.left + r.width * (step % 2 ? 0.6 : 0.4),
+            clientY: r.top + r.height * 0.5,
+          });
+          canvas.dispatchEvent(event);
+          return toRemote(event);
+        },
+        key(down) {
+          const type = down ? 'keydown' : 'keyup';
+          canvas.dispatchEvent(new KeyboardEvent(type, { bubbles: true, code: 'KeyQ' }));
+        },
+        mark: () => markValue(ctx.getImageData(0, MARK_ROW, MARK_WIDTH, 1).data),
+      };
+    }
 
     let resizeTimer: ReturnType<typeof setTimeout>;
     const ro = new ResizeObserver(() => {
