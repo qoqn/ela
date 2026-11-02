@@ -1,0 +1,25 @@
+[package]
+name = "ela-workspace"
+description = "Opens Sessions from saved Connections and addresses: Inheritance, routes, Secrets, Recent"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ela-core.workspace = true
+ela-import.workspace = true
+ela-session.workspace = true
+ela-transport.workspace = true
+ela-vault.workspace = true
+async-trait.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+ela-ssh.workspace = true
+tempfile = "3.27.0"
+tokio = { workspace = true, features = ["test-util"] }

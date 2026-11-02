@@ -1,0 +1,3 @@
+# Generated, and compared byte for byte by the `bindings` tests.
+src/lib/bindings.ts
+src/dev/settings-schemas.json

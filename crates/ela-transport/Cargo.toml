@@ -1,0 +1,18 @@
+[package]
+name = "ela-transport"
+description = "Routes to a host: Jump Host chains, later SOCKS and relays"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ela-core.workspace = true
+ela-session.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+socket2 = { version = "0.6", features = ["all"] }
+tracing.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true

@@ -1,0 +1,9 @@
+HostKey /etc/ssh/keys/ssh_host_ed25519_key
+HostKey /etc/ssh/keys/ssh_host_rsa_key
+UsePAM yes
+PasswordAuthentication no
+PubkeyAuthentication no
+KbdInteractiveAuthentication yes
+AuthenticationMethods keyboard-interactive
+AllowTcpForwarding yes
+MaxStartups 100

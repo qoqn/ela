@@ -1,0 +1,133 @@
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-sans-condensed/latin-500.css';
+@import '@fontsource/ibm-plex-sans-condensed/latin-600.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+
+@theme {
+  /* Reset Tailwind's palette: feature code may only use Ela tokens. */
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --color-chassis: #121314;
+  --color-panel: #191a1b;
+  --color-raised: #262728;
+  --color-selected: #1f3038;
+  --color-line: #2a2b2c;
+  --color-edge: #333536;
+  --color-dim: #999999;
+  --color-text: #bfbfbf;
+  --color-screen: #121314;
+
+  --color-signal: #3994bc;
+  --color-signal-strong: #297aa0;
+  --color-on-accent: #ffffff;
+  --color-label: #f1ead2;
+  --color-label-ink: #1c1c1a;
+  --color-danger: #b5404a;
+  --color-danger-text: #f48771;
+
+  --color-env-prod: #f14c4c;
+  --color-env-staging: #cca700;
+  --color-env-dev: #89d185;
+  --color-env-lab: #b180d7;
+  --color-env-none: #7a7f87;
+
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-condensed: 'IBM Plex Sans Condensed', 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --text-xs: 11px;
+  --text-xs--line-height: 14px;
+  --text-sm: 12px;
+  --text-sm--line-height: 16px;
+  --text-base: 13px;
+  --text-base--line-height: 18px;
+  --text-md: 15px;
+  --text-md--line-height: 20px;
+  --text-lg: 18px;
+  --text-lg--line-height: 24px;
+  --text-xl: 24px;
+  --text-xl--line-height: 30px;
+
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --shadow-1: 0 1px 0 #00000040;
+  --shadow-2: 0 8px 24px #00000066;
+
+  --ease-ela: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+:root {
+  --motion-fast: 90ms;
+  --motion-base: 160ms;
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0ms !important;
+  }
+}
+
+@layer base {
+  /* rem stays 16px so Tailwind spacing keeps its scale; text size is set on body. */
+  body {
+    background: var(--color-chassis);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+
+  /* Rows fill their container edge to edge, so a ring outside them would be clipped. */
+  :is([role='tab'], [role='option'], [data-row]):focus-visible {
+    outline-offset: -2px;
+  }
+
+  ::selection {
+    background: #264f78;
+  }
+}
+
+/* A list that keeps focus itself marks its current row instead of drawing a ring around
+   everything it holds. */
+@utility list-focus {
+  &:focus-visible {
+    outline: none;
+  }
+  &:focus-visible [data-current] {
+    outline: 2px solid var(--color-signal);
+    outline-offset: -2px;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility hatched {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--rail-color) 0 6px,
+    color-mix(in srgb, var(--rail-color) 45%, #000) 6px 12px
+  );
+}

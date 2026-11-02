@@ -1,0 +1,23 @@
+@import 'tailwindcss';
+@import './lib/ui/tokens.css';
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Text the user may want to copy stays selectable. */
+input,
+textarea,
+.selectable {
+  user-select: text;
+}
+
+.xterm,
+.xterm .xterm-viewport {
+  background-color: var(--color-screen) !important;
+}

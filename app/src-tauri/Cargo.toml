@@ -1,0 +1,43 @@
+[package]
+name = "ela-app"
+description = "Remote connection manager for SSH and RDP"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "ela_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+ela-core.workspace = true
+ela-session.workspace = true
+ela-ssh.workspace = true
+ela-rdp.workspace = true
+ela-bench.workspace = true
+ela-vault.workspace = true
+ela-import.workspace = true
+ela-transport.workspace = true
+ela-workspace.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+specta.workspace = true
+specta-typescript = "0.0.13"
+tauri = { version = "2", features = ["specta"] }
+tracing.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid.workspace = true
+tauri-plugin-clipboard-manager = "2.5.0"
+tauri-specta = { version = "=2.0.0-rc.26", features = ["derive", "typescript"] }
+png = "0.18.1"
+dirs = "7.0.0"
+tauri-plugin-dialog = "2.8.4"
+fontdb = { version = "0.24.0", default-features = false, features = ["fs", "memmap", "fontconfig"] }
+
+[dev-dependencies]
+tauri = { version = "2", features = ["specta", "test"] }
+tempfile = "3.27.0"

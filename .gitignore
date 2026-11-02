@@ -1,0 +1,8 @@
+/target
+node_modules/
+/app/dist
+/app/src-tauri/gen
+/dev/ssh/host-ca*
+/dev/ssh/user-ca*
+/.private/
+/CLAUDE.local.md

@@ -1,0 +1,35 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "app/src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+rust-version = "1.94"
+
+[workspace.dependencies]
+ela-core = { path = "crates/ela-core" }
+ela-session = { path = "crates/ela-session" }
+ela-ssh = { path = "crates/ela-ssh" }
+ela-rdp = { path = "crates/ela-rdp" }
+ela-bench = { path = "crates/ela-bench" }
+ela-vault = { path = "crates/ela-vault" }
+ela-import = { path = "crates/ela-import" }
+ela-transport = { path = "crates/ela-transport" }
+ela-workspace = { path = "crates/ela-workspace" }
+
+anyhow = "1"
+async-trait = "0.1"
+bytes = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net", "io-util"] }
+tokio-util = "0.7"
+tracing = "0.1"
+uuid = { version = "1", features = ["v4", "v5", "serde"] }
+specta = { version = "=2.0.0-rc.26", features = ["derive", "serde_json", "uuid"] }
+
+[profile.dev.package."*"]
+opt-level = 2

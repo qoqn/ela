@@ -1,0 +1,148 @@
+{
+  "ssh": {
+    "term": {
+      "type": "string",
+      "default": "xterm-256color",
+      "label": "Terminal type"
+    },
+    "identity_file": {
+      "type": "list",
+      "label": "Identity files",
+      "hint": "One path per line, tried before ssh-agent.",
+      "group": "sign_in",
+      "mono": true
+    },
+    "certificate_file": {
+      "type": "list",
+      "label": "Certificates",
+      "hint": "One path per line. A key's own -cert.pub is found without being listed.",
+      "group": "sign_in",
+      "mono": true
+    },
+    "identities_only": {
+      "type": "enum",
+      "values": [
+        "no",
+        "yes"
+      ],
+      "labels": {
+        "no": "No",
+        "yes": "Yes"
+      },
+      "default": "no",
+      "label": "Only the identity files",
+      "hint": "Leaves ssh-agent's other keys out, so a server that counts tries isn't used up.",
+      "group": "sign_in"
+    },
+    "identity_agent": {
+      "type": "string",
+      "label": "ssh-agent socket",
+      "hint": "A path, none, or SSH_AUTH_SOCK.",
+      "group": "sign_in",
+      "mono": true
+    },
+    "proxy_jump": {
+      "type": "list",
+      "label": "Jump Host",
+      "hint": "A saved connection's name or user@host:port, one per line, in the order they are passed.",
+      "group": "route",
+      "mono": true
+    },
+    "server_alive_interval": {
+      "type": "integer",
+      "label": "Keepalive seconds",
+      "hint": "How often to check the server still answers. 0 turns it off.",
+      "default": 30
+    },
+    "host_key_alias": {
+      "type": "string",
+      "label": "Host key alias",
+      "hint": "The name to check the host key under, instead of the address.",
+      "group": "advanced",
+      "mono": true
+    },
+    "user_known_hosts_file": {
+      "type": "string",
+      "label": "Known hosts file",
+      "default": "~/.ssh/known_hosts",
+      "group": "advanced",
+      "mono": true
+    },
+    "host_key_algorithms": {
+      "type": "string",
+      "label": "Host key algorithms",
+      "hint": "As in ~/.ssh/config: +name adds to the defaults, -name removes, ^name puts first.",
+      "group": "advanced",
+      "mono": true
+    },
+    "kex_algorithms": {
+      "type": "string",
+      "label": "Key exchange algorithms",
+      "hint": "As in ~/.ssh/config: +name adds to the defaults, -name removes, ^name puts first.",
+      "group": "advanced",
+      "mono": true
+    },
+    "pubkey_accepted_algorithms": {
+      "type": "string",
+      "label": "Key signature algorithms",
+      "hint": "As in ~/.ssh/config: +name adds to the defaults, -name removes, ^name puts first.",
+      "group": "advanced",
+      "mono": true
+    },
+    "ciphers": {
+      "type": "string",
+      "label": "Ciphers",
+      "hint": "As in ~/.ssh/config: +name adds to the defaults, -name removes, ^name puts first.",
+      "group": "advanced",
+      "mono": true
+    },
+    "macs": {
+      "type": "string",
+      "label": "MACs",
+      "hint": "As in ~/.ssh/config: +name adds to the defaults, -name removes, ^name puts first.",
+      "group": "advanced",
+      "mono": true
+    }
+  },
+  "rdp": {
+    "domain": {
+      "type": "string",
+      "label": "Domain",
+      "group": "sign_in"
+    },
+    "image_quality": {
+      "type": "enum",
+      "values": [
+        "auto",
+        "lossless"
+      ],
+      "labels": {
+        "auto": "Automatic",
+        "lossless": "Lossless"
+      },
+      "default": "auto",
+      "label": "Image quality",
+      "hint": "Automatic sends large changes as JPEG and sharpens them once the screen is still."
+    },
+    "clipboard": {
+      "type": "enum",
+      "values": [
+        "on",
+        "off"
+      ],
+      "labels": {
+        "on": "On",
+        "off": "Off"
+      },
+      "default": "on",
+      "label": "Clipboard sync"
+    },
+    "proxy_jump": {
+      "type": "list",
+      "label": "Jump Host",
+      "hint": "A saved connection's name or user@host:port, one per line, in the order they are passed.",
+      "group": "route",
+      "mono": true
+    }
+  }
+}

@@ -1,0 +1,5 @@
+# The webview never sees Secrets
+
+The frontend handles only Credential References. A Secret may pass from the UI to Rust exactly once, write-only, when the user types it (password field, Quick Connect), and the webview drops it right after. Passwords, private keys and tokens are read, decrypted, used and zeroized entirely in Rust, and no Tauri command returns a Secret. The webview renders untrusted remote text (window titles, filenames, banners), so one XSS bug there must not expose credentials for every saved host. The cost is that features like "show password" or "copy password" have to be backend commands that write straight to the clipboard or a native dialog, not values handed to the UI.
+
+A saved Connection is opened by its ID: Rust looks up the host and the Secret together, so no request can pair a Credential Reference with a host of the webview's choosing. This narrows what an XSS bug can do without closing it. `save_connection` still accepts any host and reference, so a compromised webview could rewrite a Connection while the Vault is unlocked, though it would still never read the Secret itself.

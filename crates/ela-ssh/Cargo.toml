@@ -1,0 +1,31 @@
+[package]
+name = "ela-ssh"
+description = "SSH Protocol (russh)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ela-session.workspace = true
+ela-transport.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+russh = "0.65"
+serde_json.workspace = true
+tokio = { workspace = true, features = ["fs"] }
+tracing.workspace = true
+signature = { version = "3", default-features = false }
+tempfile = "3.27.0"
+russh-sftp = "3.0.1"
+data-encoding = "2.11"
+getrandom = "0.4"
+hmac = "0.13"
+sha1 = "0.11"
+uuid.workspace = true
+whoami = "2.1.3"
+
+[dev-dependencies]
+ela-core.workspace = true
+ela-vault.workspace = true
+tokio = { workspace = true, features = ["test-util"] }

@@ -1,0 +1,17 @@
+[package]
+name = "ela-import"
+description = "Turns other tools' saved data into Connections"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ela-core.workspace = true
+glob = "0.3.4"
+serde_json.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile = "3.27.0"

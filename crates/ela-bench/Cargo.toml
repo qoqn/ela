@@ -1,0 +1,14 @@
+[package]
+name = "ela-bench"
+description = "Synthetic Protocols for measuring Renderer throughput"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ela-session.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+serde_json.workspace = true
+tokio.workspace = true

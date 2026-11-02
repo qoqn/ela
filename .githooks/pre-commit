@@ -1,0 +1,7 @@
+#!/bin/sh
+# Formatting is checked here because the repo has no CI that would catch it later.
+set -e
+root=$(git rev-parse --show-toplevel)
+cargo fmt --manifest-path "$root/Cargo.toml" --all --check
+cd "$root/app"
+bun fmt --check

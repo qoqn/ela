@@ -1,0 +1,65 @@
+# Test servers for development: `./gen-keys.sh`, then `docker compose up` in this folder.
+# Credentials are ela / ela. Never expose these ports beyond localhost.
+services:
+  ssh:
+    image: linuxserver/openssh-server:latest
+    environment:
+      USER_NAME: ela
+      USER_PASSWORD: ela
+      PASSWORD_ACCESS: "true"
+    volumes:
+      # Keeps the host keys stable across container re-creation, so known_hosts
+      # stays valid and Ela doesn't (rightly) report a changed identity.
+      - ssh-config:/config
+      - ./ssh/for-tests.sh:/custom-cont-init.d/for-tests.sh:ro
+      # The long form, so a key not generated yet stops here. Docker would otherwise make a folder
+      # in its place.
+      - type: bind
+        source: ./ssh/host-ca
+        target: /ca/host-ca
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./ssh/user-ca.pub
+        target: /ca/user-ca.pub
+        read_only: true
+        bind:
+          create_host_path: false
+    ports:
+      - "127.0.0.1:2222:2222"
+
+  # Only reachable through a Jump Host: it publishes no port.
+  ssh-inner:
+    image: linuxserver/openssh-server:latest
+    environment:
+      USER_NAME: ela
+      USER_PASSWORD: ela
+      PASSWORD_ACCESS: "true"
+    volumes:
+      - ssh-inner-config:/config
+      - ./ssh/for-tests.sh:/custom-cont-init.d/for-tests.sh:ro
+
+  # Offers only keyboard-interactive (PAM): ela / ela, and otp / otp plus a TOTP code.
+  ssh-otp:
+    build:
+      context: ./ssh-otp
+      args:
+        DEBIAN_MIRROR: ${DEBIAN_MIRROR:-http://deb.debian.org/debian}
+    volumes:
+      - ssh-otp-keys:/etc/ssh/keys
+    ports:
+      - "127.0.0.1:2223:22"
+
+  rdp:
+    build:
+      context: ./rdp
+      args:
+        DEBIAN_MIRROR: ${DEBIAN_MIRROR:-http://deb.debian.org/debian}
+    ports:
+      - "127.0.0.1:3389:3389"
+
+volumes:
+  ssh-config:
+  ssh-inner-config:
+  ssh-otp-keys:

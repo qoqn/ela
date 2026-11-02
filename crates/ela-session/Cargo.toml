@@ -1,0 +1,27 @@
+[package]
+name = "ela-session"
+description = "Protocol and Session traits, SessionManager, data pump with backpressure"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ela-core.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+jpeg-encoder = { version = "0.7.1", features = ["simd"] }
+secrecy = { version = "0.10", features = ["serde"] }
+serde.workspace = true
+serde_json.workspace = true
+specta.workspace = true
+tempfile = "3.27.0"
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+jpeg-decoder = "0.3.2"
+tokio = { workspace = true, features = ["test-util"] }
