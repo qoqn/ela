@@ -122,6 +122,18 @@ Compare only runs taken close together, with the terminal flood as a control, si
 
 A Tab out of view, measured 2026-11-02 with a Full HD every-pixel Tab behind an idle terminal: 60 fps and 9.3 MB/s before, 0 fps and 0 MB/s after, and back to 60 fps within 1.5 s of showing it. CPU time for the whole 30-second run, app and webview processes together, went from 52 s to 14.5 s.
 
+Ctrl+C during `yes` on the SSH fixture, time until the last byte arrives, measured 2026-11-02 with two runs per row unless noted:
+
+| SSH window | Ela's terminal queues | Until the last byte | `yes` rate |
+|---|---|---|---|
+| 2 MB (default, as in OpenSSH) | as they are | 273, 373 ms | 4.5 to 4.8 MB/s |
+| 2 MB | 4 credits, 64 KB messages | 428, 448 ms | 3 MB/s |
+| 1 MB | as they are | 140, 166 ms | 5.1 MB/s |
+| 512 KB | as they are | 62, 76 ms | 5.0 to 5.3 MB/s |
+| 512 KB | 4 credits, 64 KB messages | 119, 157 ms | 3.2 MB/s |
+
+Rate times time stays near the window, so the window holds most of what still prints. Smaller queues in Ela looked good against the benchmark flood, where typing during a flood went from 73 to 25 ms, but that flood has no SSH window, and against a real server they made things worse. They stayed as they are. The window applies to the whole connection, and SFTP keeps 16 reads in flight, so a smaller one also limits downloads to about window / round trip. Typing itself takes 11 to 12 ms to reach the screen on the SSH fixture, nearly all of it waiting for xterm's next animation frame.
+
 **Verdict: Tauri stays.** Terminals have far more headroom than any SSH link needs. Framebuffers hit a transport ceiling of about 180 MB/s for raw pixels, which is enough for normal desktop work but not for full-screen motion. The webview remains the UI on these conditions:
 
 1. Dirty regions travel as several rectangles, not one bounding box.
